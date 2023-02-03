@@ -53,7 +53,14 @@ ebs_haul %>%
   right_join(mat_haul, by = c("cruise", "gis_station")) %>%
   mutate(year = as.numeric(str_extract(cruise, "\\d{4}")))  ->  snow_cpue
 
+#Add in BSIERP sampling regions associated with each station
+  #read in lookup table
+regions <- read.csv("./data/regions_lookup.csv")
+  #join
+snow_cpue %>%
+  left_join(regions, by="gis_station") -> final.dat
+
 ##################################################
 
 #Write new master csv                               
-write_csv(snow_cpue, file="./data/condition_haul_master.csv")
+write_csv(final.dat, file="./data/condition_haul_master.csv")
