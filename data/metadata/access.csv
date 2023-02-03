@@ -1,0 +1,10 @@
+fileName,name,contentUrl,encodingFormat
+condition_haul_master.csv,condition_haul_master,NA,csv
+gadm36_CAN_1_sp.rds,gadm36_CAN_1_sp,NA,rds
+gadm36_USA_1_sp.rds,gadm36_USA_1_sp,NA,rds
+haul_opilio.csv,haul_opilio,NA,csv
+haul_opilio_nbs.csv,haul_opilio_nbs,NA,csv
+regions_lookup.csv,regions_lookup,NA,csv
+Snow Condition Master.csv,Snow Condition Master,NA,csv
+strata_opilio.csv,strata_opilio,NA,csv
+strata_opilio_nbs.csv,strata_opilio_nbs,NA,csv

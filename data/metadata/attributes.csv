@@ -1,0 +1,28 @@
+fileName,variableName,description,unitText
+condition_haul_master.csv,cruise,"Cruise ID for Bering Sea bottom trawl surveys. YYYY-01 indicates EBS surveys, YYYY-02 indicates NBS surveys. See RACEBASE or AKFIN for additional NOAA cruise metadata",numeric
+condition_haul_master.csv,gis_station,Alpha-numeric designation for the station established in the design of AFSC standardized surveys.,numeric/text
+condition_haul_master.csv,area_swept,Unit of effort for AFSC bottom trawl surveys: computed by distance towed*mean net width,"numeric, in ha"
+condition_haul_master.csv,cpue,"Station-level snow crab density, calculated as CPUE","numeric, crab/nmi^2"
+condition_haul_master.csv,vial_id,"Unique ID for hepatopancreas sample. AKK=Alaska Knight samples, V=Vesteraalen samples",numeric/text
+condition_haul_master.csv,vessel,ID number of the vessel used to collect data for that haul associated with vessel name. ,numeric
+condition_haul_master.csv,haul,"Uniquely identifies a sampling event (haul) within an AFSC cruise. It is a sequential number, in chronological order of occurrence.",numeric
+condition_haul_master.csv,sex,"Sex of specimen sampled. 1=Male, 2-Female",numeric
+condition_haul_master.csv,cw,Carapace width of specimen sampled,"numeric, in mm"
+condition_haul_master.csv,ch_cc,"Chela height (males) or clutch code (females) used to determine maturity. 0 clutch code for females signifies 000, or immature","numeric, in mm"
+condition_haul_master.csv,crab_wgt,Whole crab weight of specimen sampled (prior to dissection). Only individuals with no missing limbs weighed,"numeric, in g"
+condition_haul_master.csv,hepatotray_wt,2019 samples only: Total weight of aluminum weigh boat,"numeric, in g"
+condition_haul_master.csv,hepato_wwt,2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of hepatopancreas,"numeric, in g"
+condition_haul_master.csv,hepato_dwt,2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of hepatopancreas after drying at 70C for 48hrs,"numeric, in g"
+condition_haul_master.csv,muscletray_wt,2019 samples only: Total weight of aluminum weigh boat,"numeric, in g"
+condition_haul_master.csv,muscle_wwt,2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of muscle tissue from 1st walking leg during dissection,"numeric, in g"
+condition_haul_master.csv,muscle_dwt,2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of muscle tissue after drying at 70C for 48hrs,"numeric, in g"
+condition_haul_master.csv,process_date,2019 samples only: date of dissection at KFRC (crab frozen whole in 2019 and dissected post-freeze),date
+condition_haul_master.csv,notes,Additional comments recorded during at-sea dissections,text
+condition_haul_master.csv,maturity,"Maturity of specimen sampled. 0=Immature, 1=Mature",numeric
+condition_haul_master.csv,mid_latitude,Latitude of specimen collection. Designates latitude at start of haul for AFSC standardized surveys,decimalDegree
+condition_haul_master.csv,mid_longitude,Longitude of specimen collection. Designates longititude at start of haul for AFSC standardized surveys,decimalDegree
+condition_haul_master.csv,bottom_depth,Bottom depth at station for AFSC standardized surveys,"numeric, in m"
+condition_haul_master.csv,gear_temperature,Bottom temperature at sampling station,degree C
+condition_haul_master.csv,year,Year of specimen collection,numeric
+condition_haul_master.csv,region,"Pre-defined spatial sampling strata in the Bering Sea. Regions 1-6 correspond with EBS BSIERP regions, Regions 7-9 correspond with NBS BSIERP regions.",numeric
+condition_haul_master.csv,lme,"Large marine ecosystem: EBS=eastern Bering Sea, NBS=northern Bering Sea",text

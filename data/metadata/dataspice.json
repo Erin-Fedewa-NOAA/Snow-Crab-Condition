@@ -1,0 +1,255 @@
+{
+  "@context": "http://schema.org",
+  "type": "Dataset",
+  "name": "Snow Crab Condition",
+  "creator": [
+    {
+      "type": "Person",
+      "id": null,
+      "email": "erin.fedewa@noaa.gov",
+      "affiliation": "NOAA AFSC Shellfish Assessment Program",
+      "name": "Erin Fedewa"
+    },
+    {
+      "type": "Person",
+      "id": null,
+      "email": "louise.copeman@noaa.gov",
+      "affiliation": "NOAA AFSC Fisheries Behavioral Ecology Program",
+      "name": "Louise Copeman"
+    }
+  ],
+  "description": "Immature juvenile snow crab hepatopancreas samples collected for fatty acid analyses",
+  "datePublished": "2023-02-02",
+  "keywords": ["snow crab", "Bering Sea", "condition", "fatty acid"],
+  "funder": "North Pacific Research Board",
+  "temporalCoverage": "2019-06-01/2022-08-31",
+  "license": null,
+  "spatialCoverage": {
+    "type": "Place",
+    "name": "Eastern and northern Bering Sea",
+    "geo": {
+      "type": "GeoShape",
+      "box": "65.34335 -163.9851 55.71306 -177.895"
+    }
+  },
+  "variableMeasured": [
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "cruise",
+      "description": "Cruise ID for Bering Sea bottom trawl surveys. YYYY-01 indicates EBS surveys, YYYY-02 indicates NBS surveys. See RACEBASE or AKFIN for additional NOAA cruise metadata"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric/text",
+      "name": "gis_station",
+      "description": "Alpha-numeric designation for the station established in the design of AFSC standardized surveys."
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in ha",
+      "name": "area_swept",
+      "description": "Unit of effort for AFSC bottom trawl surveys: computed by distance towed*mean net width"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, crab/nmi^2",
+      "name": "cpue",
+      "description": "Station-level snow crab density, calculated as CPUE"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric/text",
+      "name": "vial_id",
+      "description": "Unique ID for hepatopancreas sample. AKK=Alaska Knight samples, V=Vesteraalen samples"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "vessel",
+      "description": "ID number of the vessel used to collect data for that haul associated with vessel name."
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "haul",
+      "description": "Uniquely identifies a sampling event (haul) within an AFSC cruise. It is a sequential number, in chronological order of occurrence."
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "sex",
+      "description": "Sex of specimen sampled. 1=Male, 2-Female"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in mm",
+      "name": "cw",
+      "description": "Carapace width of specimen sampled"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in mm",
+      "name": "ch_cc",
+      "description": "Chela height (males) or clutch code (females) used to determine maturity. 0 clutch code for females signifies 000, or immature"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "crab_wgt",
+      "description": "Whole crab weight of specimen sampled (prior to dissection). Only individuals with no missing limbs weighed"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "hepatotray_wt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "hepato_wwt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of hepatopancreas"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "hepato_dwt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of hepatopancreas after drying at 70C for 48hrs"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "muscletray_wt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "muscle_wwt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of muscle tissue from 1st walking leg during dissection"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "muscle_dwt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of muscle tissue after drying at 70C for 48hrs"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "date",
+      "name": "process_date",
+      "description": "2019 samples only: date of dissection at KFRC (crab frozen whole in 2019 and dissected post-freeze)"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "text",
+      "name": "notes",
+      "description": "Additional comments recorded during at-sea dissections"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "maturity",
+      "description": "Maturity of specimen sampled. 0=Immature, 1=Mature"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "decimalDegree",
+      "name": "mid_latitude",
+      "description": "Latitude of specimen collection. Designates latitude at start of haul for AFSC standardized surveys"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "decimalDegree",
+      "name": "mid_longitude",
+      "description": "Longitude of specimen collection. Designates longititude at start of haul for AFSC standardized surveys"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in m",
+      "name": "bottom_depth",
+      "description": "Bottom depth at station for AFSC standardized surveys"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "degree C",
+      "name": "gear_temperature",
+      "description": "Bottom temperature at sampling station"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "year",
+      "description": "Year of specimen collection"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "region",
+      "description": "Pre-defined spatial sampling strata in the Bering Sea. Regions 1-6 correspond with EBS BSIERP regions, Regions 7-9 correspond with NBS BSIERP regions."
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "text",
+      "name": "lme",
+      "description": "Large marine ecosystem: EBS=eastern Bering Sea, NBS=northern Bering Sea"
+    }
+  ],
+  "distribution": [
+    {
+      "type": "DataDownload",
+      "name": "condition_haul_master",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "gadm36_CAN_1_sp",
+      "contentUrl": null,
+      "encodingFormat": "rds"
+    },
+    {
+      "type": "DataDownload",
+      "name": "gadm36_USA_1_sp",
+      "contentUrl": null,
+      "encodingFormat": "rds"
+    },
+    {
+      "type": "DataDownload",
+      "name": "haul_opilio",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "haul_opilio_nbs",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "regions_lookup",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "Snow Condition Master",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "strata_opilio",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "strata_opilio_nbs",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    }
+  ]
+}
