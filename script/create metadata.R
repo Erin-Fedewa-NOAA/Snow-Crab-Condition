@@ -7,7 +7,7 @@ library(dataspice)
 library(tidyverse)
 
 # Data 
-scdat <- read.csv("./data/condition_haul_master.csv")
+scdat <- read.csv("./data/total_FA_master.csv")
 
 ######################################
 
