@@ -82,4 +82,4 @@ Distribution
 
   File                                              Format    
   ------------------------------------------------- -------- -------------------------------------------------
-  `Snow Crab Condition`   `csv`    [Download](https://github.com/Erin-Fedewa-NOAA)
+  `total_FA_master`   `csv`    [Download](https://github.com/Erin-Fedewa-NOAA)
