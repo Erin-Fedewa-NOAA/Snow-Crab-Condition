@@ -45,6 +45,7 @@ Coverage
 
 Attributes
 ----------
+Three master datasets have been produced for further analyses via the "append haul" script. 1) total_FA_master.csv includes all snow crab biometric, fatty acid and haul level data, with data attributes listed below 2) percWT_FA_master.csv includes individual fatty acids for each hepatopancreas sample by % weight. Haul and biometric data in the attribute table below are included as well 3) perWWT_FA_master.csv includes individual fatty acid data reported as fatty acid per wet weight (micrograms/mg)
 
 | Name    |    Description   |   Unit    |
 | ------- | ---------------- | ---------- |
