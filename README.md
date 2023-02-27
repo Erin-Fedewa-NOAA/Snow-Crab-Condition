@@ -1,5 +1,5 @@
 # Snow-Crab-Condition
-Script, data and output for NPRB funded project: Bering Sea snow crab lipid condition metrics in relation to temperature and recruitment dynamics. The "condition_haul_master.csv" contains immature snow crab sampled for hepatopancreas on 2019, 2021 and 2022 EBS and NBS NOAA bottom trawl surveys.
+Script, data and output for NPRB funded project: Bering Sea snow crab lipid condition metrics in relation to temperature and recruitment dynamics. This dataset contains immature snow crab sampled for hepatopancreas on 2019, 2021 and 2022 EBS and NBS NOAA bottom trawl surveys. Hepatopancreas samples were extracted for fatty acids to explore spatiotemporal variation in condition
 
 # Objectives:
 1)	Determine spatial and interannual variation in body condition (i.e. total lipid content) and energy allocation (i.e. lipid class composition) of juvenile snow crab in the Bering Sea 
