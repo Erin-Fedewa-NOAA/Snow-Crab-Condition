@@ -120,8 +120,9 @@ condition_master %>%
 
 #% DWT vrs total FA
 new.dat %>%
-  ggplot(aes(Perc_DWT, Total_FA, color=factor(year))) +
+  ggplot(aes(Perc_DWT, Total_FA, color=factor(year), label=vial_id)) +
   geom_point() +
+  geom_text(hjust=.7, vjust=-.5) +
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) +
   labs(x= "% DWT in Hepatopancreas", y = "Total FA (mg/g DWT)")
