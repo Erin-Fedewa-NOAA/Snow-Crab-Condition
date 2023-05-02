@@ -21,7 +21,7 @@ bio_dat %>%
       maturity = case_when((Sex == 2 & CH_CC > 0) ~ 1,
                               (Sex == 2 & CH_CC == 0) ~ 0,
                               (Sex == 1 & log(CH_CC) < -2.20640 + 1.13523 * log(CW))| (Sex == 1 & CW < 50) ~ 0,
-                              (Sex == 1 & log(CH_CC) > -2.20640 + 1.13523 * log(CW)) ~ 1)) -> cond_mat
+                              (Sex == 1 & log(CH_CC) >= -2.20640 + 1.13523 * log(CW)) ~ 1)) -> cond_mat
 
 #############################
 #Append EBS & NBS haul data 
