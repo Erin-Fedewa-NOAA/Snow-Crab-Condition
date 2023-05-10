@@ -45,7 +45,7 @@ Coverage
 
 Attributes
 ----------
-Three master datasets have been produced for further analyses via the "append haul" script. 1) total_FA_master.csv includes all snow crab biometric, fatty acid and haul level data, with data attributes listed below 2) percWT_FA_master.csv includes individual fatty acids for each hepatopancreas sample by % weight. Haul and biometric data in the attribute table below are included as well 3) perWWT_FA_master.csv includes individual fatty acid data reported as fatty acid per wet weight (micrograms/mg)
+Four master datasets have been produced for further analyses via the "append haul" script. 1) total_FA_master.csv includes all snow crab biometric, fatty acid and haul level data, with data attributes listed below 2) percWT_FA_master.csv includes individual fatty acids for each hepatopancreas sample by % weight. Haul and biometric data in the attribute table below are included as well 3) perWWT_FA_master.csv includes individual fatty acid data reported as fatty acid per wet weight (micrograms/mg) and 4) perDWT_FA_master.csv includes individual fatty acid data reported as fatty acid per dry weight (micrograms/mg)
 
 | Name    |    Description   |   Unit    |
 | ------- | ---------------- | ---------- |
@@ -72,13 +72,10 @@ Three master datasets have been produced for further analyses via the "append ha
 |  `lme` |   Large marine ecosystem: EBS=eastern Bering Sea, NBS=northern Bering Sea   |  text
 |  `DWT_WWT` |   hepatopancreas dry weight/hepatopancreas wet weight   |  numeric, in g
 |  `Perc_DWT` |   hepatopancreas dry weight/ hepatopancreas wet weight x 100; percentage hepatopancreas dry weight    |  percentage
-|  `Total_FA_Conc` |   total fatty acid concentration of hepatopancreas sample   |  mg FA/ g WWT
+|  `Total_FA_Conc_WWT` |   total fatty acid wet weight concentration of hepatopancreas sample   |  mg FA/ g WWT
+|  `Total_FA_Conc_DWT` |   total fatty acid dry weight concentration of hepatopancreas sample   |  mg FA/ g DWT
 |  `Total_FA` |   Total fatty acid concentration/hepatopancreas dry weight:wet weight ratio   |  mg/g DWT
-|  `Total_FA_extract` |   Total fatty acid in lipid extract   |  numeric, in micrograms
 |  `WWT_DWT` |   hepatopancreas wet weight/dry weight    |  numeric, in g
-|  `Internal_Standard_Added_ug` |   Internal standard added to lipid sample   |  numeric, in micrograms
-|  `Lipid_WWT_g` |   Lipid sample wet weight   |  numeric, in g
-|  `Lipid_WWT_mg` |   Lipid sample wet weight   |  numeric, in mg
 
 :::
 
