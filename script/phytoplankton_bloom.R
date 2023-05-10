@@ -1,6 +1,6 @@
 library(dplyr)
-
-
+library(ggplot2)
+library(cmocean) # just for colors - you can pick a different palette if you want 
 #################
 ### data prep ###
 #################
@@ -81,10 +81,78 @@ write.csv(s,"data/bloom_type_data_JMN.csv")
 ###
 
 s<-read.csv("data/bloom_type_data_JMN.csv")
-head(s)
-
 s<-s[!is.na(s$bsregion),]
+head(s)
+# getting the crab years #
+
+sub_crab<-c(2019,2021,2022) # picking areas from all mooring areas
+s2<- s[s$year %in% sub_crab, ]
 
 
+
+aggS<-aggregate(ice_retreat_timing ~longitude*latitude*bsregion,data=s,mean) 
+# note here - because there are NA estimates for bloom type (which I filtered out) - the lat and long wobble a bit. That is why this map looks a bit strange. You can safely ignore that
+head(aggS)
+# loading map 
+data_map<-map_data("world2") # map_data from ggmap mapping package. Slow so I leave it out for now.
+# note map is in 0-360 longitude +
+ggplot()+
+  coord_equal(xlim=c(180,205),ylim=c(54,66),ratio = 1.8)+
+  geom_polygon(data = data_map, aes(x=long, y = lat, group = group),colour="black", fill="darkgrey")+ # map blanked out
+  #geom_tile(data=aggS,aes(x=longitude+360 ,y=latitude,fill=bsregion))#+
+  geom_point(data=aggS,aes(x=longitude+360 ,y=latitude,color=as.factor(bsregion)))#+
+#scale_fill_gradientn(colours = (cmocean('thermal')(200)),name = "") +
+  #geom_point(data=d3,aes(x=longitude,y=latitude),color='white')+
+  #geom_point(data=d3,aes(x=effective_contour_longitude ,y=effective_contour_latitude ),color='orange') #+
+
+
+
+windows(20,10)
+ggplot()+
+  coord_equal(xlim=c(180,205),ylim=c(54,66),ratio = 1.8)+
+  geom_polygon(data = data_map, aes(x=long, y = lat, group = group),colour="black", fill="darkgrey")+ # map blanked out
+  #geom_tile(data=aggS,aes(x=longitude+360 ,y=latitude,fill=bsregion))#+
+  geom_point(data=s2,aes(x=longitude+360 ,y=latitude,color=as.factor(bloom_type)),size=5)+
+  facet_wrap(.~year,ncol=3)
+
+head(s2)
+# ice retreat timing (which link to bloom type)
+
+windows(20,10)
+ggplot()+
+  coord_equal(xlim=c(180,205),ylim=c(54,66),ratio = 1.8)+
+  geom_polygon(data = data_map, aes(x=long, y = lat, group = group),colour="black", fill="darkgrey")+ # map blanked out
+  geom_point(data=s2,aes(x=longitude+360 ,y=latitude,color=(ice_retreat_timing )),size=5)+
+  scale_color_gradientn(colours = (cmocean('haline')(200)),name = "") +
+  facet_wrap(.~year,ncol=3)
+
+
+### summary of bloom type (percent ice associated vs open water). 
+### Hunt et al. 2011 provides a good overview of why a change in bloom type might influence fish. Same could apply for crab
+### Happy to explain more
+### my only concern here is that we split (by bs region) into relatively few number of obs per region - so the percent calc is a based on 5-10 values. We can talk
+head(s)
+bl_reg <- s %>% group_by(bsregion,year) %>% summarize (nb_ice = sum(bloom_type=="ice_full"),
+                                                       nb_open = sum(bloom_type=="ice_free") ) 
+bl_reg$total<- bl_reg$nb_ice+bl_reg$nb_open
+bl_reg$perc_open<- (bl_reg$nb_open/bl_reg$total)*100 # this would be your indicator 
+
+head(bl_reg)
+### looking at a single region ###
+### region 13 and 15 - were difficult ot estimate - so not a lot of esimates (5, 6 years). I would avoid using those. 
+bl_reg13<-bl_reg[bl_reg$bsregion==13,]
+
+
+windows(22,20)
+ggplot()+
+  geom_point(data=bl_reg,aes(x=year,y=perc_open),size=4,col='dodgerblue')+
+  geom_line(data=bl_reg,aes(x=year,y=perc_open),size=2,col='dodgerblue')+
+  facet_wrap(.~bsregion,ncol=5)
+
+
+
+bl_reg_erin<- bl_reg[bl_reg$year %in% sub_crab, ]
+
+write.csv(bl_reg_erin,"data/final_perc_open_water_2019_2022.csv")
 
 
