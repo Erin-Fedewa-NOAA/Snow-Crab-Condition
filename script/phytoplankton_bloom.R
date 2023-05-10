@@ -13,8 +13,6 @@ g<- g[!is.na(g$gl_peak_timing_all_log),] # crop data to those
 table(g$gl_type) # removing ice_cycle. Erin don't worry about this / just a subset of estimates that were tricky - ice coming and going. I am removing those for your index
 g<-g[!g$gl_type=='ice_cycle',]
 
-
-
 ########################################
 ### assigning spatial BSIERP regions ###
 ########################################
