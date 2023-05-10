@@ -29,6 +29,7 @@ condition_master %>%
   coord_quickmap(xlim = c(-179, -158), ylim = c(53, 66)) +
   theme_bw() +
   facet_wrap(~year)
+  ggsave("./figures/data exploration/n_year.png", dpi=300)
 
 # Sample sizes by year 
 condition_master %>%
@@ -40,17 +41,19 @@ condition_master %>%
   facet_wrap(~year) +
   theme_bw() +
   labs(x= "", y = "Sample size")
+ggsave("./figures/data exploration/n_year2.png", dpi=300)
 
-# Sample sizes by sampling region 
+# Sample sizes by BSIERP region 
 condition_master %>%
-  group_by(year,region, lme) %>%
+  group_by(year,bsierp_region, lme) %>%
   count() %>%
   filter(lme != "NA") %>% #one crab collected outside the sampling design
   ggplot() +
-  geom_bar(aes(x=as.factor(region), y= n), stat='identity') +
+  geom_bar(aes(x=as.factor(bsierp_region), y= n), stat='identity') +
   facet_grid(lme~year) +
   theme_bw() +
-  labs(x= "Bering Sea Region", y = "Sample size")
+  labs(x= "BSIERP Region", y = "Sample size")
+ggsave("./figures/data exploration/n_bsierpregion.png", dpi=300)
 
 #Sample sizes by maturity
 condition_master %>%
@@ -73,6 +76,7 @@ condition_master %>%
   facet_wrap(~year) +
   theme_bw() +
   labs(x= "Sex", y = "Sample size")
+ggsave("./figures/data exploration/n_sex.png", dpi=300)
 
 #Size composition sampled by region/yr
 condition_master %>%
@@ -80,7 +84,7 @@ condition_master %>%
   filter(lme != "NA") %>% #one crab collected outside the sampling design
   group_by(year) %>%
   ggplot() +
-  geom_histogram(aes(x=cw, fill=Sex), position = "stack", binwidth = 2) +
+  geom_density(aes(x=cw, fill=Sex), position = "stack", binwidth = 2) +
   scale_fill_manual(values=c("#00BFC4", "#F8766D")) +
   facet_grid(lme~year) +
   theme_bw() +
@@ -93,11 +97,12 @@ condition_master %>%
          !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66")) %>% #large females likely tanners
   group_by(year) %>%
   ggplot() +
-  geom_histogram(aes(x=cw, fill=Sex), position = "stack", binwidth = 2) +
+  geom_density(aes(x=cw, fill=Sex), position = "stack", binwidth = 2) +
   scale_fill_manual(values=c("#00BFC4", "#F8766D")) +
   facet_grid(lme~year) +
   theme_bw() +
   labs(x= "Snow crab carapace width (mm)", y = "Count")
+ggsave("./figures/data exploration/size_comp.png", dpi=300)
 #will need to factor size into models! 
 
 #Size range sampled across years by region
@@ -130,11 +135,12 @@ new.dat %>%
 
 #% DWT vrs total FA concentration
 new.dat %>%
-  ggplot(aes(Perc_DWT, Total_FA_Conc, color=factor(year))) +
+  ggplot(aes(Perc_DWT, Total_FA_Conc_WWT, color=factor(year))) +
   geom_point() +
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) +
   labs(x= "% DWT in Hepatopancreas", y = "Total FA per WWT (mg FA/g WWT)")
+ggsave("./figures/data exploration/DWTvFA.png", dpi=300)
 #two major outliers from 2019 may need a closer look 
 
 #Crab weight vrs % DWT by sex
@@ -170,39 +176,41 @@ mutate(K=crab_wgt/(cw^3)*100000) %>%
 
 #############################################
 #SPATIAL/INTERANNUAL VARIATION IN CONDITION METRICS 
-  #Using %DWT for now as proxy until 2022 data comes in
-
-#%DWT FA by lme and year
+  
+#Total FA by lme and year
 new.dat %>%
-  ggplot(aes(factor(year), Perc_DWT)) +
+  ggplot(aes(factor(year), Total_FA_Conc_WWT)) +
   geom_boxplot() +
   facet_wrap(~lme) +
   theme_bw() +
-  labs(x= "", y = "% DWT in hepatopancreas")
+  labs(x= "", y = "Total FA per WWT (mg FA/g WWT)")
+ggsave("./figures/data exploration/FA_year.png", dpi=300)
 
-#%DWT by region and year
+#Total FA by region and year
 new.dat %>%
-  ggplot(aes(factor(region), Perc_DWT)) +
+  ggplot(aes(factor(bsierp_region), Total_FA_Conc_WWT)) +
   geom_boxplot() +
   facet_wrap(~year) +
   theme_bw() +
-  labs(x= "", y = "% DWT in hepatopancreas")
+  labs(x= "", y = "Total FA per WWT (mg FA/g WWT)")
+ggsave("./figures/data exploration/FA_bsierpregion.png", dpi=300)
 
-#%DWT by lme, year and sex
+#Total FA by lme, year and sex
 new.dat %>%
-  ggplot(aes(factor(sex), Perc_DWT)) +
+  ggplot(aes(factor(sex), Total_FA_Conc_WWT)) +
   geom_boxplot() +
   facet_grid(lme~year) +
   theme_bw() +
-  labs(x= "", y = "% DWT in hepatopancreas")
+  labs(x= "", y = "Total FA per WWT (mg FA/g WWT)")
+ggsave("./figures/data exploration/FA_year_lme.png", dpi=300)
 #EBS large males in 2019 are the anomaly 
 
-#%DWT x size by year and region
+#Total FA x size by year and region
 new.dat %>%
-  ggplot(aes(cw, Perc_DWT, color=factor(year))) +
+  ggplot(aes(cw, Total_FA_Conc_WWT, color=factor(year))) +
   geom_point() +
   theme_bw() + 
-  labs(x= "Carapace width (mm)", y = "% DWT in hepatopancreas") +
+  labs(x= "Carapace width (mm)", y = "Total FA per WWT (mg FA/g WWT)") +
   facet_wrap(~lme, scales = "free_x")
 
 #Mean total FA by size bin
@@ -211,66 +219,83 @@ new.dat %>%
          !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66")) %>%
   mutate(size_bin = cut(cw, breaks=c(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110))) %>%
   group_by(size_bin, year, sex) %>%
-  summarise(Avg_DWT = mean(Perc_DWT, na.rm=T)) %>%
+  summarise(Avg_FA = mean(Total_FA_Conc_WWT, na.rm=T)) %>%
   filter(size_bin != "NA") %>%
-  ggplot(aes(as.factor(size_bin), Avg_DWT)) +
+  ggplot(aes(as.factor(size_bin), Avg_FA)) +
   geom_col() +
   theme_bw() +
   facet_grid(sex~year) +
-  labs(x= "", y = "% DWT Hepatopancreas") 
+  labs(x= "Carapace width size bin (mm)", y = "Mean Total FA per WWT (mg FA/g WWT)")
+  ggsave("./figures/data exploration/FA_year_size.png", dpi=300)
 
 ################################################
 #RELATIONSHIPS WITH COVARIATES
   
 #range of observed temperature data by year 
 condition_master %>%
-  group_by(year, region, gis_station) %>%
+  group_by(year, bsierp_region, gis_station) %>%
   summarise(temperature = mean(gear_temperature)) %>%
   ggplot(aes(temperature)) +
   geom_histogram(bins = 12, fill = "dark grey", color = "black") +
-  facet_wrap(~year)
+  facet_wrap(~year) +
+  theme_bw() +
+  labs(x= "Bottom Temperature (C)", y = "Count")
+  ggsave("./figures/data exploration/temp.png", dpi=300)
 
 #Depth
 condition_master %>%
-    group_by(year, region, gis_station) %>%
+    group_by(year, bsierp_region, gis_station) %>%
     summarise(depth = mean(bottom_depth)) %>%
     ggplot(aes(depth)) +
     geom_histogram(bins = 12, fill = "dark grey", color = "black") +
-    facet_wrap(~year)
+    facet_wrap(~year) +
+    theme_bw() +
+    labs(x= "Depth (m)", y = "Count")
 
 #Cpue
 condition_master %>%
-  group_by(year, region, gis_station) %>%
+  group_by(year, bsierp_region, gis_station) %>%
   summarise(cpue = mean(cpue)) %>%
   ggplot(aes(cpue)) +
   geom_histogram(fill = "dark grey", color = "black") +
-  facet_wrap(~year)
+  facet_wrap(~year)+
+  theme_bw() +
+  labs(x= "Snow Crab Density", y = "Count")
 
-#Plot explanatory variables as predictors of %DWT by year/station 
+#Plot explanatory variables as predictors of Total FA by year/station 
 new.dat %>%
   group_by(year, lme, gis_station) %>%
   summarise(size = mean(cw), 
             temperature = mean(gear_temperature),
             CPUE = mean(cpue^0.25), #fourth root transform
-            avg_percDWT = mean(Perc_DWT)) -> plot
+            avg_total_FA = mean(Total_FA_Conc_WWT)) -> plot
 
-#Mean size-at-station vrs %DWT 
-ggplot(plot, aes(size, avg_percDWT)) +
+#Mean size-at-station vrs total FA
+ggplot(plot, aes(size, avg_total_FA)) +
   geom_point() + 
   facet_grid(lme~year) +
-  geom_smooth(method = "gam") 
+  geom_smooth(method = "gam") +
+  theme_bw() +
+  labs(x="Mean carapace width at station (mm)", y="Total FA per WWT (mg FA/g WWT)")
+ggsave("./figures/data exploration/stationxsizexFA.png", dpi=300)
 
-#Temp-at-station vrs %DWT
-ggplot(plot, aes(temperature, avg_percDWT)) +
+#Temp-at-station vrs total FA
+ggplot(plot, aes(temperature, avg_total_FA)) +
   geom_point() + 
   facet_grid(lme~year) +
-  geom_smooth(method = "gam")
+  geom_smooth(method = "gam") +
+  theme_bw() +
+  labs(x="Mean temperature at station (C)", y="Total FA per WWT (mg FA/g WWT)")
+ggsave("./figures/data exploration/stationxtempxFA.png", dpi=300)
 
-#CPUE-at-station vrs %DWT
-ggplot(plot, aes(CPUE, avg_percDWT)) +
+#CPUE-at-station vrs Total FA
+ggplot(plot, aes(CPUE, avg_total_FA)) +
   geom_point() + 
   facet_grid(lme~year) +
-  geom_smooth(method = "gam")
+  geom_smooth(method = "gam") +
+  theme_bw() +
+  labs(x="Snow crab density at station", y="Total FA per WWT (mg FA/g WWT)")
+ggsave("./figures/data exploration/stationxcpuexFA.png", dpi=300)
 
 #Maybe we should split out by sex?
 
@@ -287,6 +312,7 @@ condition_master %>%
   coord_quickmap(xlim = c(-179, -158), ylim = c(53, 66)) +
   theme_bw() +
   facet_wrap(~year)
+ggsave("./figures/data exploration/avgFA_map.png", dpi=300)
 
 ##########################################
 ##TO NOTE:

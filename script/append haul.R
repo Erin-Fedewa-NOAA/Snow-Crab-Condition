@@ -54,7 +54,7 @@ ebs_haul %>%
   right_join(mat_haul, by = c("cruise", "gis_station")) %>%
   mutate(year = as.numeric(str_extract(cruise, "\\d{4}")))  ->  snow_cpue
 
-#Add in BSIERP sampling regions associated with each station
+#Add in BSIERP and sampling regions associated with each station
   #read in lookup table
 regions <- read.csv("./data/regions_lookup.csv")
   #join
@@ -64,15 +64,15 @@ snow_cpue %>%
 ##################################################
 #Joining Lipid Lab 2/9/23 FA data (2019 and 2021 only)
 
-lipid <- read.csv("./data/2019_2022 FA data.csv")
+lipid <- read.csv("./data/2019_2022 FA data.csv", na.strings="")
 colnames(lipid)<-gsub("X","",colnames(lipid))
 
 #Data wrangling
 lipid %>%
-  pivot_longer(!vial_id, names_to= "id", values_to = "data") %>% 
+  pivot_longer(!vial_id, names_to= "id", values_to = "data", values_transform = as.numeric) %>% 
   pivot_wider(names_from ="vial_id", values_from="data") %>%
   mutate(vial_id = gsub(".","-",id, fixed = TRUE)) %>%
-  select(-id, -Order_processed, -Instd_Vial) %>%
+  select(-id, -Lost_sample) %>%
   mutate(year = as.numeric(year)) -> lipid.dat
 
 #Create % Weight FA Master by joining to haul data 
@@ -87,14 +87,20 @@ lipid.dat %>%
   full_join(snow_cpue_area, by=c("vial_id","year")) %>%
   write_csv(file="./data/perWWT_FA_master.csv")
 
+#Create FA per DWT Master by joining to haul data
+lipid.dat %>%
+  select(contains(c("_perDWT","vial_id","year"))) %>%
+  full_join(snow_cpue_area, by=c("vial_id","year")) %>%
+  write_csv(file="./data/perDWT_FA_master.csv")
+
 #Create Total FA Master by joining to haul data
 lipid.dat %>%
-  select(-contains(c("_perWWT","_percWT"))) %>%
+  select(-contains(c("_perWWT","_percWT", "_perDWT"))) %>%
   full_join(snow_cpue_area, by=c("vial_id","year")) %>%
   #calculate additional WWT:DWT/FA metrics
   mutate(DWT_WWT = hepato_dwt/hepato_wwt,
          Perc_DWT = DWT_WWT*100,
-         Total_FA = as.numeric(Total_FA_Conc)/DWT_WWT,
+         Total_FA = as.numeric(Total_FA_Conc_WWT)/DWT_WWT,
          WWT_DWT = hepato_wwt/hepato_dwt) %>%
 write_csv(file="./data/total_FA_master.csv")
 
