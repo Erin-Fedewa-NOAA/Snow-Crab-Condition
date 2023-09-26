@@ -1,0 +1,585 @@
+<html>
+  <head>
+    <title>Snow Crab Condition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="application/ld+json">
+      {
+  "@context": "http://schema.org",
+  "type": "Dataset",
+  "name": "Snow Crab Condition",
+  "creator": [
+    {
+      "type": "Person",
+      "id": null,
+      "email": "erin.fedewa@noaa.gov",
+      "affiliation": "NOAA AFSC Shellfish Assessment Program",
+      "name": "Erin Fedewa"
+    },
+    {
+      "type": "Person",
+      "id": null,
+      "email": "louise.copeman@noaa.gov",
+      "affiliation": "NOAA AFSC Fisheries Behavioral Ecology Program",
+      "name": "Louise Copeman"
+    }
+  ],
+  "description": "Immature juvenile snow crab hepatopancreas samples collected for fatty acid analyses",
+  "datePublished": "2023-02-02",
+  "keywords": ["snow crab", "Bering Sea", "condition", "fatty acid"],
+  "funder": "North Pacific Research Board",
+  "temporalCoverage": "2019-06-01/2022-08-31",
+  "license": null,
+  "spatialCoverage": {
+    "type": "Place",
+    "name": "Eastern and northern Bering Sea",
+    "geo": {
+      "type": "GeoShape",
+      "box": "65.34335 -163.9851 55.71306 -177.895"
+    }
+  },
+  "variableMeasured": [
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "cruise",
+      "description": "Cruise ID for Bering Sea bottom trawl surveys. YYYY-01 indicates EBS surveys, YYYY-02 indicates NBS surveys. See RACEBASE or AKFIN for additional NOAA cruise metadata"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric/text",
+      "name": "gis_station",
+      "description": "Alpha-numeric designation for the station established in the design of AFSC standardized surveys."
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in ha",
+      "name": "area_swept",
+      "description": "Unit of effort for AFSC bottom trawl surveys: computed by distance towed*mean net width"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, crab/nmi^2",
+      "name": "cpue",
+      "description": "Station-level snow crab density, calculated as CPUE"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric/text",
+      "name": "vial_id",
+      "description": "Unique ID for hepatopancreas sample. AKK=Alaska Knight samples, V=Vesteraalen samples"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "vessel",
+      "description": "ID number of the vessel used to collect data for that haul associated with vessel name."
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "haul",
+      "description": "Uniquely identifies a sampling event (haul) within an AFSC cruise. It is a sequential number, in chronological order of occurrence."
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "sex",
+      "description": "Sex of specimen sampled. 1=Male, 2-Female"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in mm",
+      "name": "cw",
+      "description": "Carapace width of specimen sampled"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in mm",
+      "name": "ch_cc",
+      "description": "Chela height (males) or clutch code (females) used to determine maturity. 0 clutch code for females signifies 000, or immature"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "crab_wgt",
+      "description": "Whole crab weight of specimen sampled (prior to dissection). Only individuals with no missing limbs weighed"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "hepatotray_wt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "hepato_wwt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of hepatopancreas"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "hepato_dwt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of hepatopancreas after drying at 70C for 48hrs"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "muscletray_wt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "muscle_wwt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of muscle tissue from 1st walking leg during dissection"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in g",
+      "name": "muscle_dwt",
+      "description": "2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of muscle tissue after drying at 70C for 48hrs"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "date",
+      "name": "process_date",
+      "description": "2019 samples only: date of dissection at KFRC (crab frozen whole in 2019 and dissected post-freeze)"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "text",
+      "name": "notes",
+      "description": "Additional comments recorded during at-sea dissections"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "maturity",
+      "description": "Maturity of specimen sampled. 0=Immature, 1=Mature"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "decimalDegree",
+      "name": "mid_latitude",
+      "description": "Latitude of specimen collection. Designates latitude at start of haul for AFSC standardized surveys"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "decimalDegree",
+      "name": "mid_longitude",
+      "description": "Longitude of specimen collection. Designates longititude at start of haul for AFSC standardized surveys"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric, in m",
+      "name": "bottom_depth",
+      "description": "Bottom depth at station for AFSC standardized surveys"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "degree C",
+      "name": "gear_temperature",
+      "description": "Bottom temperature at sampling station"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "year",
+      "description": "Year of specimen collection"
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "numeric",
+      "name": "region",
+      "description": "Pre-defined spatial sampling strata in the Bering Sea. Regions 1-6 correspond with EBS BSIERP regions, Regions 7-9 correspond with NBS BSIERP regions."
+    },
+    {
+      "type": "PropertyValue",
+      "unitText": "text",
+      "name": "lme",
+      "description": "Large marine ecosystem: EBS=eastern Bering Sea, NBS=northern Bering Sea"
+    }
+  ],
+  "distribution": [
+    {
+      "type": "DataDownload",
+      "name": "condition_haul_master",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "gadm36_CAN_1_sp",
+      "contentUrl": null,
+      "encodingFormat": "rds"
+    },
+    {
+      "type": "DataDownload",
+      "name": "gadm36_USA_1_sp",
+      "contentUrl": null,
+      "encodingFormat": "rds"
+    },
+    {
+      "type": "DataDownload",
+      "name": "haul_opilio",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "haul_opilio_nbs",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "regions_lookup",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "Snow Condition Master",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "strata_opilio",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    },
+    {
+      "type": "DataDownload",
+      "name": "strata_opilio_nbs",
+      "contentUrl": null,
+      "encodingFormat": "csv"
+    }
+  ]
+}
+
+    </script>
+    <style>
+      body {
+        font-size: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        margin: 0 auto;
+        padding: 1rem;
+        max-width: 800px;
+      }
+
+      #map {
+        height: 20rem;
+      }
+
+      #attributes-wrapper,
+      #jsonld-wrapper {
+        height: 20rem;
+        overflow-y: scroll;
+      }
+
+      table {
+        border-collapse: collapse;
+      }
+
+      th {
+        border-bottom: 1px solid black;
+      }
+
+      th, td {
+        padding: 0.25rem;
+      }
+
+      table.listing td {
+        border: 1px solid #CCC;
+      }
+
+      table.listing tr td:first-child {
+          background-color: #EEE;
+      }
+
+      table.listing ul {
+        margin: 0 0 0 1.5rem;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Snow Crab Condition</h1>
+    <p><strong>Description:</strong> Immature juvenile snow crab hepatopancreas samples collected for fatty acid analyses</p>
+
+    <h2>Bibliographic</h2>
+
+    <table class="listing">
+      <tr>
+        <td>Published</td>
+        <td>2023-02-02</td>
+      </tr>
+      <tr>
+        <td>Keywords</td>
+        <td>
+          <ul>
+            <li>snow crab</li>
+            <li>Bering Sea</li>
+            <li>condition</li>
+            <li>fatty acid</li>
+        </ul>
+        </td>
+      </tr>
+      <tr>
+        <td>Funder</td>
+        <td>North Pacific Research Board</td>
+      </tr>
+      <tr>
+        <td>License</td>
+        <td></td>
+      </tr>
+    </table>
+
+    <h2>Coverage</h2>
+
+    <h3>Temporal</h3>
+
+    <table class="listing">
+      <tr>
+        <td>Begin</td>
+        <td>2019-06-01</td>
+      </tr>
+      <tr>
+        <td>End</td>
+        <td>2022-08-31</td>
+      </tr>
+    </table>
+
+    <h3>Spatial</h3>
+    <pre><code></code></pre>
+    <div id="map"></div>
+
+    <h2>Attributes</h2>
+
+    <div id="attributes-wrapper">
+      <table id="attributes">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>cruise</code></td>
+            <td>Cruise ID for Bering Sea bottom trawl surveys. YYYY-01 indicates EBS surveys, YYYY-02 indicates NBS surveys. See RACEBASE or AKFIN for additional NOAA cruise metadata</td>
+            <td>numeric</td>
+          </tr>
+          <tr>
+            <td><code>gis_station</code></td>
+            <td>Alpha-numeric designation for the station established in the design of AFSC standardized surveys.</td>
+            <td>numeric/text</td>
+          </tr>
+          <tr>
+            <td><code>area_swept</code></td>
+            <td>Unit of effort for AFSC bottom trawl surveys: computed by distance towed*mean net width</td>
+            <td>numeric, in ha</td>
+          </tr>
+          <tr>
+            <td><code>cpue</code></td>
+            <td>Station-level snow crab density, calculated as CPUE</td>
+            <td>numeric, crab/nmi^2</td>
+          </tr>
+          <tr>
+            <td><code>vial_id</code></td>
+            <td>Unique ID for hepatopancreas sample. AKK=Alaska Knight samples, V=Vesteraalen samples</td>
+            <td>numeric/text</td>
+          </tr>
+          <tr>
+            <td><code>vessel</code></td>
+            <td>ID number of the vessel used to collect data for that haul associated with vessel name.</td>
+            <td>numeric</td>
+          </tr>
+          <tr>
+            <td><code>haul</code></td>
+            <td>Uniquely identifies a sampling event (haul) within an AFSC cruise. It is a sequential number, in chronological order of occurrence.</td>
+            <td>numeric</td>
+          </tr>
+          <tr>
+            <td><code>sex</code></td>
+            <td>Sex of specimen sampled. 1=Male, 2-Female</td>
+            <td>numeric</td>
+          </tr>
+          <tr>
+            <td><code>cw</code></td>
+            <td>Carapace width of specimen sampled</td>
+            <td>numeric, in mm</td>
+          </tr>
+          <tr>
+            <td><code>ch_cc</code></td>
+            <td>Chela height (males) or clutch code (females) used to determine maturity. 0 clutch code for females signifies 000, or immature</td>
+            <td>numeric, in mm</td>
+          </tr>
+          <tr>
+            <td><code>crab_wgt</code></td>
+            <td>Whole crab weight of specimen sampled (prior to dissection). Only individuals with no missing limbs weighed</td>
+            <td>numeric, in g</td>
+          </tr>
+          <tr>
+            <td><code>hepatotray_wt</code></td>
+            <td>2019 samples only: Total weight of aluminum weigh boat</td>
+            <td>numeric, in g</td>
+          </tr>
+          <tr>
+            <td><code>hepato_wwt</code></td>
+            <td>2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of hepatopancreas</td>
+            <td>numeric, in g</td>
+          </tr>
+          <tr>
+            <td><code>hepato_dwt</code></td>
+            <td>2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of hepatopancreas after drying at 70C for 48hrs</td>
+            <td>numeric, in g</td>
+          </tr>
+          <tr>
+            <td><code>muscletray_wt</code></td>
+            <td>2019 samples only: Total weight of aluminum weigh boat</td>
+            <td>numeric, in g</td>
+          </tr>
+          <tr>
+            <td><code>muscle_wwt</code></td>
+            <td>2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of muscle tissue from 1st walking leg during dissection</td>
+            <td>numeric, in g</td>
+          </tr>
+          <tr>
+            <td><code>muscle_dwt</code></td>
+            <td>2019 samples only: Total weight of aluminum weigh boat PLUS 1-2 grams of muscle tissue after drying at 70C for 48hrs</td>
+            <td>numeric, in g</td>
+          </tr>
+          <tr>
+            <td><code>process_date</code></td>
+            <td>2019 samples only: date of dissection at KFRC (crab frozen whole in 2019 and dissected post-freeze)</td>
+            <td>date</td>
+          </tr>
+          <tr>
+            <td><code>notes</code></td>
+            <td>Additional comments recorded during at-sea dissections</td>
+            <td>text</td>
+          </tr>
+          <tr>
+            <td><code>maturity</code></td>
+            <td>Maturity of specimen sampled. 0=Immature, 1=Mature</td>
+            <td>numeric</td>
+          </tr>
+          <tr>
+            <td><code>mid_latitude</code></td>
+            <td>Latitude of specimen collection. Designates latitude at start of haul for AFSC standardized surveys</td>
+            <td>decimalDegree</td>
+          </tr>
+          <tr>
+            <td><code>mid_longitude</code></td>
+            <td>Longitude of specimen collection. Designates longititude at start of haul for AFSC standardized surveys</td>
+            <td>decimalDegree</td>
+          </tr>
+          <tr>
+            <td><code>bottom_depth</code></td>
+            <td>Bottom depth at station for AFSC standardized surveys</td>
+            <td>numeric, in m</td>
+          </tr>
+          <tr>
+            <td><code>gear_temperature</code></td>
+            <td>Bottom temperature at sampling station</td>
+            <td>degree C</td>
+          </tr>
+          <tr>
+            <td><code>year</code></td>
+            <td>Year of specimen collection</td>
+            <td>numeric</td>
+          </tr>
+          <tr>
+            <td><code>region</code></td>
+            <td>Pre-defined spatial sampling strata in the Bering Sea. Regions 1-6 correspond with EBS BSIERP regions, Regions 7-9 correspond with NBS BSIERP regions.</td>
+            <td>numeric</td>
+          </tr>
+          <tr>
+            <td><code>lme</code></td>
+            <td>Large marine ecosystem: EBS=eastern Bering Sea, NBS=northern Bering Sea</td>
+            <td>text</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Distribution</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Format</th>
+          <th>&nbsp;</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>condition_haul_master</code></td>
+          <td><code>csv</code></td>
+          <td><a href="">Download</a></td>
+        </tr>
+        <tr>
+          <td><code>gadm36_CAN_1_sp</code></td>
+          <td><code>rds</code></td>
+          <td><a href="">Download</a></td>
+        </tr>
+        <tr>
+          <td><code>gadm36_USA_1_sp</code></td>
+          <td><code>rds</code></td>
+          <td><a href="">Download</a></td>
+        </tr>
+        <tr>
+          <td><code>haul_opilio</code></td>
+          <td><code>csv</code></td>
+          <td><a href="">Download</a></td>
+        </tr>
+        <tr>
+          <td><code>haul_opilio_nbs</code></td>
+          <td><code>csv</code></td>
+          <td><a href="">Download</a></td>
+        </tr>
+        <tr>
+          <td><code>regions_lookup</code></td>
+          <td><code>csv</code></td>
+          <td><a href="">Download</a></td>
+        </tr>
+        <tr>
+          <td><code>Snow Condition Master</code></td>
+          <td><code>csv</code></td>
+          <td><a href="">Download</a></td>
+        </tr>
+        <tr>
+          <td><code>strata_opilio</code></td>
+          <td><code>csv</code></td>
+          <td><a href="">Download</a></td>
+        </tr>
+        <tr>
+          <td><code>strata_opilio_nbs</code></td>
+          <td><code>csv</code></td>
+          <td><a href="">Download</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+  integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+  crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+  integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+  crossorigin=""></script>
+    <script>
+      var mymap = L.map('map').setView([60.528205, -170.94005], 1);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
+        maxZoom: 18,
+      }).addTo(mymap);
+
+      var polygon = L.polygon([[ 65.34335, -163.9851], [ 55.71306, -163.9851], [ 55.71306, -177.895], [ 65.34335, -177.895]]).addTo(mymap);
+    </script>
+  </body>
+</html>
