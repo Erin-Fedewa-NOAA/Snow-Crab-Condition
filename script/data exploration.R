@@ -58,13 +58,13 @@ ggsave("./figures/data exploration/n_bsierpregion.png", dpi=300)
 #Sample sizes by maturity
 condition_master %>%
   filter(maturity != "NA") %>%
-  group_by(year,maturity) %>%
+  group_by(lme,year,maturity) %>%
   count() %>%
   ggplot() +
   geom_bar(aes(x=as.factor(maturity), y= n), stat='identity') +
   facet_wrap(~year) +
   theme_bw() +
-  labs(x= "Maturity Status", y = "Sample size") #21 mature males in dataset
+  labs(x= "Maturity Status", y = "Sample size") #45 mature males in dataset
 
 #Sample sizes by sex
 condition_master %>%

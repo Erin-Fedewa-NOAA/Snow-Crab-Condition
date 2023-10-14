@@ -3,6 +3,7 @@
 #To do: Need to append start date to include Julian day
 #Fourth root transform cpue
 #Date/location correct condition data with GAM
+#How to incorporate lags in this analysis?
 
 # Author: Erin Fedewa
 # last updated: 2/27/23
