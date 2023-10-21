@@ -8,6 +8,7 @@ library(tidyverse)
 library(sf)
 library(ggmap)
 library(gganimate)
+library(viridis)
 
 condition_master <- read.csv("./data/total_FA_master.csv")
 
@@ -109,7 +110,7 @@ ggsave("./figures/data exploration/size_comp.png", dpi=300)
 condition_master %>%
   filter(lme != "NA", #one crab collected outside the sampling design
          !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66")) %>%
-  group_by(lme, sex) %>%
+  group_by(lme, year, sex) %>%
   summarize(avg_cw = mean(cw, na.rm=T), 
             max_cw = max(cw, na.rm=T), 
             min_cw = min(cw, na.rm=T))
@@ -120,7 +121,7 @@ condition_master %>%
 #data wrangling 
 condition_master %>%
   filter(lme != "NA", #one crab collected outside the sampling design
-         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"),
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66","2019-207", "2019-212"),
          maturity != 1) -> new.dat
 
 #% DWT vrs total FA
@@ -176,57 +177,75 @@ mutate(K=crab_wgt/(cw^3)*100000) %>%
 
 #############################################
 #SPATIAL/INTERANNUAL VARIATION IN CONDITION METRICS 
+  #We'll use %DWT for now until 2023 fatty acid data are ready
   
-#Total FA by lme and year
+#%DWT by lme and year
 new.dat %>%
-  ggplot(aes(factor(year), Total_FA_Conc_WWT)) +
+  ggplot(aes(factor(year), Perc_DWT)) +
   geom_boxplot() +
   facet_wrap(~lme) +
   theme_bw() +
-  labs(x= "", y = "Total FA per WWT (mg FA/g WWT)")
-ggsave("./figures/data exploration/FA_year.png", dpi=300)
+  labs(x= "", y = "% DWT in hepatopancreas")
+ggsave("./figures/data exploration/DWT_year.png", dpi=300)
 
-#Total FA by region and year
+#Bar plot
+lme_names <- as_labeller(c("EBS" = "Eastern Bering Sea",
+    "NBS" = "Northern Bering Sea"))
+
 new.dat %>%
-  ggplot(aes(factor(bsierp_region), Total_FA_Conc_WWT)) +
+  ggplot(aes(factor(year), Perc_DWT, fill=lme)) +
+  geom_point(aes(color=lme),stat="summary", size=4) +
+  geom_errorbar(stat="summary", 
+                 colour="darkgray", size=.6) +
+  theme_bw() +
+  labs(x= "", y = "% DWT in hepatopancreas") +
+  theme(legend.position = "none") +
+  theme(axis.text.x = element_text(size = 11)) +
+  facet_wrap(~lme, labeller = lme_names) 
+
+#%DWT by region and year
+new.dat %>%
+  ggplot(aes(factor(bsierp_region), Perc_DWT)) +
   geom_boxplot() +
   facet_wrap(~year) +
   theme_bw() +
-  labs(x= "", y = "Total FA per WWT (mg FA/g WWT)")
-ggsave("./figures/data exploration/FA_bsierpregion.png", dpi=300)
+  labs(x= "", y = "% DWT in hepatopancreas")
+ # labs(x= "", y = "Total FA per WWT (mg FA/g WWT)")
+ggsave("./figures/data exploration/DWT_bsierpregion.png", dpi=300)
 
-#Total FA by lme, year and sex
+#%DWT by lme, year and sex
 new.dat %>%
-  ggplot(aes(factor(sex), Total_FA_Conc_WWT)) +
+  ggplot(aes(factor(sex), Perc_DWT)) +
   geom_boxplot() +
   facet_grid(lme~year) +
   theme_bw() +
-  labs(x= "", y = "Total FA per WWT (mg FA/g WWT)")
-ggsave("./figures/data exploration/FA_year_lme.png", dpi=300)
-#EBS large males in 2019 are the anomaly 
+  labs(x= "", y = "% DWT in hepatopancreas")
+ggsave("./figures/data exploration/DWT_year_lme.png", dpi=300)
+#EBS large males in 2019 are the anomaly - note that two outliers for %DWT figure
+  #above are also large outliers here too (2019-207 and 2019-212)
 
-#Total FA x size by year and region
+#%DWT x size by year and region
 new.dat %>%
-  ggplot(aes(cw, Total_FA_Conc_WWT, color=factor(year))) +
+  ggplot(aes(cw, Perc_DWT, color=factor(year))) +
   geom_point() +
   theme_bw() + 
-  labs(x= "Carapace width (mm)", y = "Total FA per WWT (mg FA/g WWT)") +
+  labs(x= "Carapace width (mm)", y = "% DWT in hepatopancreas") +
   facet_wrap(~lme, scales = "free_x")
 
-#Mean total FA by size bin
+#Mean %DWT by size bin
   new.dat %>%
   filter(lme != "NA", #one crab collected outside the sampling design
          !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66")) %>%
   mutate(size_bin = cut(cw, breaks=c(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110))) %>%
   group_by(size_bin, year, sex) %>%
-  summarise(Avg_FA = mean(Total_FA_Conc_WWT, na.rm=T)) %>%
+  summarise(Avg_DWT = mean(Perc_DWT, na.rm=T)) %>%
   filter(size_bin != "NA") %>%
-  ggplot(aes(as.factor(size_bin), Avg_FA)) +
+  ggplot(aes(as.factor(size_bin), Avg_DWT)) +
   geom_col() +
   theme_bw() +
   facet_grid(sex~year) +
-  labs(x= "Carapace width size bin (mm)", y = "Mean Total FA per WWT (mg FA/g WWT)")
-  ggsave("./figures/data exploration/FA_year_size.png", dpi=300)
+  labs(x= "Carapace width size bin (mm)", y = "% DWT in hepatopancreas")
+  ggsave("./figures/data exploration/DWT_year_size.png", dpi=300)
 
 ################################################
 #RELATIONSHIPS WITH COVARIATES
@@ -252,7 +271,7 @@ condition_master %>%
     theme_bw() +
     labs(x= "Depth (m)", y = "Count")
 
-#Cpue
+#Crab Cpue
 condition_master %>%
   group_by(year, bsierp_region, gis_station) %>%
   summarise(cpue = mean(cpue)) %>%
@@ -262,57 +281,93 @@ condition_master %>%
   theme_bw() +
   labs(x= "Snow Crab Density", y = "Count")
 
-#Plot explanatory variables as predictors of Total FA by year/station 
+#Benthic invert Cpue
+condition_master %>%
+  group_by(year, bsierp_region, gis_station) %>%
+  summarise(invert_cpue = mean(total_benthic_cpue)) %>%
+  ggplot(aes(invert_cpue)) +
+  geom_histogram(fill = "dark grey", color = "black") +
+  facet_wrap(~year)+
+  theme_bw() +
+  labs(x= "Benthic Invert Density", y = "Count")
+
+#Plot explanatory variables as predictors of % DWT by year/station
 new.dat %>%
   group_by(year, lme, gis_station) %>%
   summarise(size = mean(cw), 
             temperature = mean(gear_temperature),
             CPUE = mean(cpue^0.25), #fourth root transform
-            avg_total_FA = mean(Total_FA_Conc_WWT)) -> plot
+            invert = mean(total_benthic_cpue^0.25),
+            avg_Perc_DWT = mean(Perc_DWT)) -> plot
 
-#Mean size-at-station vrs total FA
-ggplot(plot, aes(size, avg_total_FA)) +
+#Mean size-at-station vrs %DWT
+ggplot(plot, aes(size, avg_Perc_DWT)) +
   geom_point() + 
   facet_grid(lme~year) +
   geom_smooth(method = "gam") +
   theme_bw() +
-  labs(x="Mean carapace width at station (mm)", y="Total FA per WWT (mg FA/g WWT)")
-ggsave("./figures/data exploration/stationxsizexFA.png", dpi=300)
+  labs(x="Mean carapace width at station (mm)", y="% DWT in hepatopancreas")
+ggsave("./figures/data exploration/stationxsizexDWT.png", dpi=300)
 
-#Temp-at-station vrs total FA
-ggplot(plot, aes(temperature, avg_total_FA)) +
+#Temp-at-station vrs %DWT
+ggplot(plot, aes(temperature, avg_Perc_DWT)) +
   geom_point() + 
   facet_grid(lme~year) +
   geom_smooth(method = "gam") +
   theme_bw() +
-  labs(x="Mean temperature at station (C)", y="Total FA per WWT (mg FA/g WWT)")
-ggsave("./figures/data exploration/stationxtempxFA.png", dpi=300)
+  labs(x="Mean temperature at station (C)", y="% DWT in hepatopancreas")
+ggsave("./figures/data exploration/stationxtempxDWT.png", dpi=300)
 
-#CPUE-at-station vrs Total FA
-ggplot(plot, aes(CPUE, avg_total_FA)) +
+#Temp by year vrs %DWT
+new.dat %>%
+  group_by(year, lme) %>%
+  summarise(temperature_annual = mean(gear_temperature),
+            avg_Perc_DWT_annual = mean(Perc_DWT)) %>%
+ggplot(aes(temperature_annual, avg_Perc_DWT_annual)) +
+  geom_point() + 
+  theme_bw() +
+  labs(x="Mean temperature(C)", y="% DWT in hepatopancreas")
+ggsave("./figures/data exploration/yearxtempxDWT.png", dpi=300)
+
+#CPUE-at-station vrs %DWT
+ggplot(plot, aes(CPUE, avg_Perc_DWT)) +
   geom_point() + 
   facet_grid(lme~year) +
   geom_smooth(method = "gam") +
   theme_bw() +
-  labs(x="Snow crab density at station", y="Total FA per WWT (mg FA/g WWT)")
-ggsave("./figures/data exploration/stationxcpuexFA.png", dpi=300)
+  labs(x="Snow crab density at station", y="% DWT in hepatopancreas")
+ggsave("./figures/data exploration/stationxcpuexDWT.png", dpi=300)
+
+#Benthic invert CPUE-at-station vrs %DWT
+ggplot(plot, aes(invert, avg_Perc_DWT)) +
+  geom_point() + 
+  facet_grid(lme~year) +
+  geom_smooth(method = "gam") +
+  theme_bw() +
+  labs(x="Benthic invert density at station", y="% DWT in hepatopancreas")
+ggsave("./figures/data exploration/stationxinvertcpuexDWT.png", dpi=300)
 
 #Maybe we should split out by sex?
 
 ################################################
 #SPATIAL PLOTS
 
-#Avg total FA by station/year
+#Avg %DWT by station/year
 condition_master %>% 
   group_by(year, mid_latitude, mid_longitude) %>%
-  summarise(avg_FA=mean(Total_FA)) %>%
+  summarise(avg_dwt=mean(Perc_DWT)) %>%
   ggplot() + 
   geom_polygon(data = usa, aes(x = long, y = lat, group = group))+
-  geom_point(aes(x = mid_longitude, y = mid_latitude, size=avg_FA), color= "light blue")+
+  geom_point(aes(x = mid_longitude, y = mid_latitude, color=avg_dwt))+
   coord_quickmap(xlim = c(-179, -158), ylim = c(53, 66)) +
+  scale_color_viridis() +
   theme_bw() +
-  facet_wrap(~year)
-ggsave("./figures/data exploration/avgFA_map.png", dpi=300)
+  facet_wrap(~year) +
+  labs(y= "Latitude", color = "Energetic Condition\n(% DWT)")
+ggsave("./figures/data exploration/avgDWT_map.png", dpi=300)
+
+#Follow up on this- move into survey grid shapefiles- potentially use an 
+  #IDW approach? 
 
 ##########################################
 ##TO NOTE:
@@ -320,9 +375,10 @@ ggsave("./figures/data exploration/avgFA_map.png", dpi=300)
   #during shipment of these samples so FA were not run
 #Note that there are a few BCS visually positive crab noted. These crab were not extreme outliers 
   #so were not removed from further analyses 
-#Despite protocols specifying immature males, there are 22 mature males in the dataset. These should be
+#Despite protocols specifying immature males, there are mature males in the dataset. These should be
   #removed from further analyses to control for ontogeny.
 #The following vial ID's should be removed from further analyses. Crab appear to either be mature females
   #or female tanner crab based on size: 2019-65, 2019-67, 2019-68, 2019-71, 2019-66
+#2019 %DWT outliers need to be investigated
 
 
