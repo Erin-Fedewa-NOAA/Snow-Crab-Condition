@@ -9,6 +9,8 @@ library(sf)
 library(ggmap)
 library(gganimate)
 library(viridis)
+library(ggridges)
+library(RColorBrewer)
 
 condition_master <- read.csv("./data/total_FA_master.csv")
 
@@ -201,7 +203,22 @@ new.dat %>%
   labs(x= "", y = "% DWT in hepatopancreas") +
   theme(legend.position = "none") +
   theme(axis.text.x = element_text(size = 11)) +
-  facet_wrap(~lme, labeller = lme_names) 
+  facet_wrap(~lme, labeller = lme_names)
+
+#density plot, EBS only 
+new.dat %>%
+  filter(lme == "EBS") %>%
+  ggplot(aes(Perc_DWT, factor(year))) +
+  geom_density_ridges(aes(fill=factor(year)), scale=2,
+                      quantile_lines=TRUE,
+                      quantile_fun=function(x,...)mean(x)) +
+  theme_ridges(center=TRUE) +
+  scale_fill_brewer() +
+  labs(y= "", x = "Snow Crab Energetic Condition (%DWT)") +
+  theme(legend.position="none") +
+  theme(axis.text.y = element_text(size = 14)) +
+  theme(axis.text.x = element_text(size = 11))
+  
 
 #%DWT by region and year
 new.dat %>%
