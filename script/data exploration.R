@@ -146,16 +146,16 @@ new.dat %>%
 ggsave("./figures/data exploration/DWTvFA.png", dpi=300)
 #two major outliers from 2019 may need a closer look 
 
-#Crab weight vrs % DWT by sex
+#Crab weight at size vrs % DWT by sex
 new.dat %>%
-  ggplot(aes(crab_wgt, Perc_DWT, color=factor(year))) +
+  mutate(lw = crab_wgt/cw) %>%
+  ggplot(aes(crab_wgt, lw, color=factor(year))) +
   geom_point() +
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x= "Crab weight (g)", y = "% DWT in hepatopancreas") +
+  labs(x= "Crab weight at size", y = "% DWT in hepatopancreas") +
   facet_wrap(~sex, scales = "free_x")
-#Lots of indvidual variability! Might not expect a strong size/weight
-  # rxn with FA's because growth is incremental and we only sampled one cohort? 
+
 
 #Crab size vrs % DWT by sex
 new.dat %>%
