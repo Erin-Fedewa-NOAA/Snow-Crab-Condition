@@ -40,7 +40,7 @@ Coverage
 |                | Eastern Bering Sea |
 |               |   Northern Bering Sea |
 
-![Rplot](https://user-images.githubusercontent.com/59858752/216689865-6766501b-98e4-420e-98cd-40a75e7a4ca1.png)
+![Rplot]([https://user-images.githubusercontent.com/59858752/216689865-6766501b-98e4-420e-98cd-40a75e7a4ca1.png](https://github.com/Erin-Fedewa-NOAA/Snow-Crab-Condition/blob/main/figures/data%20exploration/n_year.png?raw=true))
 
 
 Attributes
