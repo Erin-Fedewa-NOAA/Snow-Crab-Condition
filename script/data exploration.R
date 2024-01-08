@@ -1,7 +1,7 @@
 #Data exploration plots & data summaries for total FA dataset
 
 # Author: Erin Fedewa
-# last updated: 2/27/23
+# last updated: 1/5/24
 
 # load ----
 library(tidyverse)
@@ -22,7 +22,7 @@ condition_master <- read.csv("./data/total_FA_master.csv")
 usa <- raster::getData("GADM", country = c("USA"), level = 1, path = "./data")
 can <- raster::getData("GADM", country = c("CAN"), level = 1, path = "./data")
 
-#Sample size by year plot
+#Sample size by year map
 condition_master %>% 
   group_by(year, mid_latitude, mid_longitude) %>%
   summarise(n_crab=n()) %>%
@@ -34,7 +34,7 @@ condition_master %>%
   facet_wrap(~year)
   ggsave("./figures/data exploration/n_year.png", dpi=300)
 
-# Sample sizes by year 
+# Sample sizes by year plot
 condition_master %>%
   group_by(year,lme) %>%
   count() %>%
@@ -134,7 +134,6 @@ new.dat %>%
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) +
   labs(x= "% DWT in Hepatopancreas", y = "Total FA (mg/g DWT)")
-#two major outliers from 2019 may need a closer look 
 
 #% DWT vrs total FA concentration
 new.dat %>%
@@ -144,7 +143,6 @@ new.dat %>%
   geom_smooth(method = "lm", se = FALSE) +
   labs(x= "% DWT in Hepatopancreas", y = "Total FA per WWT (mg FA/g WWT)")
 ggsave("./figures/data exploration/DWTvFA.png", dpi=300)
-#two major outliers from 2019 may need a closer look 
 
 #Crab weight at size vrs % DWT by sex
 new.dat %>%
@@ -155,7 +153,6 @@ new.dat %>%
   geom_smooth(method = "lm", se = FALSE) +
   labs(x= "Crab weight at size", y = "% DWT in hepatopancreas") +
   facet_wrap(~sex, scales = "free_x")
-
 
 #Crab size vrs % DWT by sex
 new.dat %>%
@@ -179,7 +176,6 @@ mutate(K=crab_wgt/(cw^3)*100000) %>%
 
 #############################################
 #SPATIAL/INTERANNUAL VARIATION IN CONDITION METRICS 
-  #We'll use %DWT for now until 2023 fatty acid data are ready
   
 #%DWT by lme and year
 new.dat %>%
@@ -189,6 +185,15 @@ new.dat %>%
   theme_bw() +
   labs(x= "", y = "% DWT in hepatopancreas")
 ggsave("./figures/data exploration/DWT_year.png", dpi=300)
+
+#total FA concentration by lme and year
+new.dat %>%
+  ggplot(aes(factor(year), Total_FA)) +
+  geom_boxplot() +
+  facet_wrap(~lme) +
+  theme_bw() +
+  labs(x= "", y = "Total FA")
+ggsave("./figures/data exploration/TotalFA_year.png", dpi=300)
 
 #Bar plot
 lme_names <- as_labeller(c("EBS" = "Eastern Bering Sea",
@@ -396,6 +401,6 @@ ggsave("./figures/data exploration/avgDWT_map.png", dpi=300)
   #removed from further analyses to control for ontogeny.
 #The following vial ID's should be removed from further analyses. Crab appear to either be mature females
   #or female tanner crab based on size: 2019-65, 2019-67, 2019-68, 2019-71, 2019-66
-#2019 %DWT outliers need to be investigated
+#200 samples from 2023 were prioritized for fatty acids, and the rest were only measured for DWT/WWT
 
 

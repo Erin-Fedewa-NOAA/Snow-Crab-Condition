@@ -4,6 +4,8 @@
 #Fourth root transform cpue
 #Date/location correct condition data with GAM
 #How to incorporate lags in this analysis?
+#pull out mature crab? 
+#EBS/NBS models
 
 # Author: Erin Fedewa
 # last updated: 10/18/23
