@@ -153,4 +153,7 @@ bl_reg_erin<- bl_reg[bl_reg$year %in% sub_crab, ]
 
 write.csv(bl_reg_erin,"data/final_perc_open_water_2019_2022.csv")
 
+#Note: Using same methods as above, Jens updated the bloom timing dataset for 2023
+  #with personal script. Data output is "final_perc_open_water_2019_2023" 
+
 

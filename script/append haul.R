@@ -89,6 +89,14 @@ regions <- read.csv("./data/regions_lookup.csv")
 snow_invert_cpue %>%
   left_join(regions, by="gis_station") -> snow_cpue_area
 
+#And lastly, add in Nielson et al spring bloom type index
+bloom <- read.csv("./data/final_perc_open_water_2019_2023.csv")
+
+bloom %>%
+  rename(bsierp_region=bsregion, year=Year) %>%
+  select(year, bsierp_region,perc_open_water) %>%
+  right_join(snow_cpue_area, by=c("bsierp_region", "year")) -> snow_cpue_final
+
 ##################################################
 #Joining Lipid Lab 1/4/24 FA data (2019-2023)
 
@@ -97,7 +105,7 @@ colnames(lipid)<-gsub("X","",colnames(lipid))
 
 #Data wrangling
 lipid %>%
-  pivot_longer(!vial_id, names_to= "id", values_to = "data", values_transform = as.numeric) %>% 
+  pivot_longer(!vial_id, names_to= "id", values_to = "data", values_transform = as.numeric) %>% #error- blanks converted to NA's
   pivot_wider(names_from ="vial_id", values_from="data") %>%
   mutate(vial_id = gsub(".","-",id, fixed = TRUE)) %>%
   select(-id) %>%
@@ -105,7 +113,7 @@ lipid %>%
 
 #Create FA Biomarker Master by joining to haul data
 lipid.dat %>%
-  full_join(snow_cpue_area, by=c("vial_id","year")) %>%
+  full_join(snow_cpue_final, by=c("vial_id","year")) %>%
   #calculate additional WWT:DWT/FA metrics
   mutate(DWT_WWT = hepato_dwt/hepato_wwt,
          Perc_DWT = DWT_WWT*100,
@@ -116,7 +124,7 @@ lipid.dat %>%
 #Create Total FA Master by joining to haul data (just excluding biomarker data)
 lipid.dat %>%
  select(-contains(c("_perWWT","_percWT", "_perDWT"))) %>%
- full_join(snow_cpue_area, by=c("vial_id","year")) %>%
+ full_join(snow_cpue_final, by=c("vial_id","year")) %>%
 #calculate additional WWT:DWT/FA metrics
  mutate(DWT_WWT = hepato_dwt/hepato_wwt,
  Perc_DWT = DWT_WWT*100,
@@ -124,37 +132,6 @@ lipid.dat %>%
  WWT_DWT = hepato_wwt/hepato_dwt) %>%
  write_csv(file="./data/total_FA_master.csv")
 
-###########################
-#Script below if separate FA master csv's are desired 
-
-#Create % Weight FA Master by joining to haul data 
-#lipid.dat %>%
- # select(contains(c("_percWT","vial_id","year"))) %>%
-  #full_join(snow_cpue_area, by=c("vial_id", "year")) %>%
-  #write_csv(file="./data/percWT_FA_master.csv")
-
-#Create FA per WWT Master by joining to haul data
-#lipid.dat %>%
- # select(contains(c("_perWWT","vial_id","year"))) %>%
-  #full_join(snow_cpue_area, by=c("vial_id","year")) %>%
-  #write_csv(file="./data/perWWT_FA_master.csv")
-
-#Create FA per DWT Master by joining to haul data
-#lipid.dat %>%
- # select(contains(c("_perDWT","vial_id","year"))) %>%
-  #full_join(snow_cpue_area, by=c("vial_id","year")) %>%
-  #write_csv(file="./data/perDWT_FA_master.csv")
-
-#Create Total FA Master by joining to haul data
-#lipid.dat %>%
-  #select(-contains(c("_perWWT","_percWT", "_perDWT"))) %>%
-  #full_join(snow_cpue_area, by=c("vial_id","year")) %>%
-  #calculate additional WWT:DWT/FA metrics
-  #mutate(DWT_WWT = hepato_dwt/hepato_wwt,
-         #Perc_DWT = DWT_WWT*100,
-         #Total_FA = as.numeric(Total_FA_Conc_WWT)/DWT_WWT,
-         #WWT_DWT = hepato_wwt/hepato_dwt) %>%
-#write_csv(file="./data/total_FA_master.csv")
 
 
 
