@@ -137,11 +137,12 @@ new.dat %>%
 
 #% DWT vrs total FA concentration
 new.dat %>%
-  ggplot(aes(Perc_DWT, Total_FA_Conc_WWT, color=factor(year))) +
+  ggplot(aes(Perc_DWT, Total_FA_Conc_DWT, color=factor(year))) +
   geom_point() +
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x= "% DWT in Hepatopancreas", y = "Total FA per WWT (mg FA/g WWT)")
+  labs(x= "% DWT in Hepatopancreas", y = "Total FA per DWT (mg FA/g WWT)") +
+  theme(legend.title=element_blank())
 ggsave("./figures/data exploration/DWTvFA.png", dpi=300)
 
 #Crab weight at size vrs % DWT by sex
