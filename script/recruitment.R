@@ -82,10 +82,13 @@ ebs_haul %>%
   group_by(YEAR, MAT_SEX) %>%
   #Sum across strata
   summarise(ABUNDANCE_MIL = sum(ABUNDANCE)/1e6) %>%
-  filter(!is.na(MAT_SEX)) %>%
-  mutate(lag_year = YEAR -1) -> ebs_abundance
+  filter(!is.na(MAT_SEX))  -> ebs_abundance
 
-#so you'd have one plot, with both sexes, both regions 
+#Add column for lme and calculate CI? Join to condition
+#Do the same process for NBS- what sizes to use? what is the hyp? 
+#Error check abundance scripts
+#One plot, with both sexes, both regions 
+#Can we run an annual model with this, with recruitment as response? 
 
 
 #NBS

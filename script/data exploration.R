@@ -133,10 +133,13 @@ new.dat %>%
   geom_text(hjust=.7, vjust=-.5) +
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x= "% DWT in Hepatopancreas", y = "Total FA (mg/g DWT)")
+  labs(x= "% DWT in Hepatopancreas", y = "Total FA (mg/g DWT)") +
+  facet_wrap(~lme)
 
-#% DWT vrs total FA concentration
+
+#% DWT vrs total FA concentration - no 2019
 new.dat %>%
+  filter(year > 2019) %>%
   ggplot(aes(Perc_DWT, Total_FA_Conc_DWT, color=factor(year))) +
   geom_point() +
   theme_bw() + 
@@ -201,12 +204,12 @@ lme_names <- as_labeller(c("EBS" = "Eastern Bering Sea",
     "NBS" = "Northern Bering Sea"))
 
 new.dat %>%
-  ggplot(aes(factor(year), Perc_DWT, fill=lme)) +
-  geom_point(aes(color=lme),stat="summary", size=4) +
+  ggplot(aes(factor(year), Total_FA_Conc_WWT, fill=lme)) +
+  geom_bar(aes(color=lme),stat="summary") +
   geom_errorbar(stat="summary", 
                  colour="darkgray", size=.6) +
   theme_bw() +
-  labs(x= "", y = "% DWT in hepatopancreas") +
+  labs(x= "", y = "Total FA Concentration (mg FA/g WWT)") +
   theme(legend.position = "none") +
   theme(axis.text.x = element_text(size = 11)) +
   facet_wrap(~lme, labeller = lme_names)
