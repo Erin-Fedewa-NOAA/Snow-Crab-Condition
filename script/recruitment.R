@@ -1,7 +1,9 @@
 #Goals
-  # Develop incides of abundance for recruits (newshell mature males and females)
+  # Develop indices of abundance for recruits (newshell mature males and females)
   #Calculate annual means for snow crab condition
   #Assess relationship between recruitment and condition the year prior
+
+#Note: Abundance script has NOT been error checked 
 
 # Author: Erin Fedewa
 # last updated: 2/27/23
@@ -52,10 +54,10 @@ ebs_haul %>%
   filter(HAUL_TYPE == 3, 
          YEAR > 2018, 
          SEX %in% c(1,2)) %>%
-  mutate(MAT_SEX = case_when((SEX == 2 & CLUTCH_SIZE > 0 & SHELL_CONDITION %in% c(0:2)) ~ "Mature Female",
-                             (SEX == 1 & WIDTH_1MM >= 102 & SHELL_CONDITION %in% c(0:2)) ~ "Mature Male")) %>%
-  filter(!is.na(MAT_SEX)) %>%
-  group_by(YEAR, GIS_STATION, AREA_SWEPT, MAT_SEX) %>%
+  mutate(sex = case_when((SEX == 2 & CLUTCH_SIZE > 0 & SHELL_CONDITION %in% c(0:2)) ~ "2",
+                             (SEX == 1 & WIDTH_1MM >= 95 & SHELL_CONDITION %in% c(0:2)) ~ "1")) %>%
+  filter(!is.na(sex)) %>%
+  group_by(YEAR, GIS_STATION, AREA_SWEPT, sex) %>%
   summarise(ncrab = sum(SAMPLING_FACTOR, na.rm = T)) %>%
   ungroup %>%
   # compute cpue per nmi2
@@ -76,28 +78,44 @@ ebs_haul %>%
               rename_all(~c("GIS_STATION", "YEAR",
                             "STRATUM", "TOTAL_AREA"))) %>%
   #Scale to abundance by strata
-  group_by(YEAR, STRATUM, TOTAL_AREA, MAT_SEX) %>%
+  group_by(YEAR, STRATUM, TOTAL_AREA, sex) %>%
   summarise(MEAN_CPUE = mean(cpue_cnt , na.rm = T),
             ABUNDANCE = (MEAN_CPUE * mean(TOTAL_AREA))) %>%
-  group_by(YEAR, MAT_SEX) %>%
+  group_by(YEAR, sex) %>%
   #Sum across strata
   summarise(ABUNDANCE_MIL = sum(ABUNDANCE)/1e6) %>%
-  filter(!is.na(MAT_SEX))  -> ebs_abundance
+  filter(!is.na(sex)) %>%
+  rename(year = YEAR) %>%
+  mutate(lme = "EBS") -> ebs_abundance
 
-#Add column for lme and calculate CI? Join to condition
-#Do the same process for NBS- what sizes to use? what is the hyp? 
-#Error check abundance scripts
-#One plot, with both sexes, both regions 
-#Can we run an annual model with this, with recruitment as response? 
+#join ebs abundance to condition data 
+condition %>%
+  mutate(year = as.factor(year),
+         sex = as.factor(sex),
+         lme = as.factor(lme)) %>%
+  left_join(ebs_abundance %>%
+            mutate(year = as.factor(year),
+              sex = as.factor(sex),
+              lme = as.factor(lme))) %>%
+  #add in lagged condition covariate
+  arrange(year,lme) %>%
+  mutate(lag_condition = lag(avg_Total_FA)) -> cond_abun
+
+#Plot EBS data only
+cond_abun %>%
+  filter(lme == "EBS") %>%
+  ggplot(aes(lag_condition, ABUNDANCE_MIL)) +
+  geom_point(aes(color=sex)) +
+  #geom_text(aes(label = year)) +
+  theme_bw() +
+  ylim(0,2500)
+
+#This relationship is difficult to assess with 
+  #a) so few data points...need a timeseries
+  #b) a missing survey in 2020- currently 2019 condition is predictor for 2021 abundances
+  #c) thinking about how NBS fits into this, because crab may move into EBS the following year
+  #d) thinking about what male proxy for recruitment. Many of the males sampled are larger than cutline already
+      #as pre-recruits 
+#The goal would be to assess predictive capacity as dataset builds, so let's set aside for now 
 
 
-#NBS
-  #what size class is next up from size calculating- and will these crab move south?
-
-
-
-
-
-
-
-#############################################

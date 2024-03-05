@@ -1,4 +1,5 @@
 #Change in CPUE plot (2018 vrs 2021)
+  #Plot for AMSS talk 
 
 # load ----
 library(tidyverse)
@@ -29,6 +30,9 @@ dat %>%
               replace(., is.infinite(.), 100)) %>%
   dplyr::select(-c(`2018`,`2021`)) -> cpue
   
+#The scale isn't showing negative values b/c data are skewed 
+#Calculate breakpoints or scale (discrete colors vrs continuous), or log transform
+  
 #Extract lat and longs for stations
 ebs_haul %>%
   rename_with(tolower) %>%
@@ -41,7 +45,7 @@ ebs_haul %>%
 dat %>%
   full_join(lat) -> plot
 
-#plot change in cpue
+#plot change in cpue as 2018 vrs 2021 side by side 
 #Basemaps
 usa <- raster::getData("GADM", country = c("USA"), level = 1, path = "./data")
 can <- raster::getData("GADM", country = c("CAN"), level = 1, path = "./data")
@@ -62,7 +66,4 @@ plot %>%
       limits=c(0, 2850000), breaks=seq(0, 2850000, by=570000))
 ggsave("./figures/data exploration/cpue.png", dpi=300)
 
-#The scale isn't showing negative values b/c data are skewed 
-#Calucalte breakpoints or scale (discrete colors vrs continuous)
 
-dat2 %>% print(n=500)
