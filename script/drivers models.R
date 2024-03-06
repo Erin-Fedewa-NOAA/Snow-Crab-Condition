@@ -1,4 +1,4 @@
-#Analyze condition metrics in C.opilio using Bayesian multivariate models
+#Investigate drivers of condition in C.opilio using Bayesian multivariate models
 
 #To do: Need to append start date to include Julian day
 #Fourth root transform cpue
