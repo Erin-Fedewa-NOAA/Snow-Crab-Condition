@@ -1,0 +1,119 @@
+#Goal: Assess the relationship b/w total fatty acid concentration and indirect proxies for condition
+
+#NOTE: We're removing 2019 from validation models b/c methods differed (i.e. hepatos were dissected
+  #in the lab after freezing whole crab, and likely affects WWT:DWT ratio due to water loss)
+
+# Author: Erin Fedewa
+# last updated: 3/5/24
+
+# load ----
+library(tidyverse)
+library(sf)
+library(ggmap)
+library(gganimate)
+library(viridis)
+library(ggridges)
+library(RColorBrewer)
+library(broom)
+
+
+condition_master <- read.csv("./data/total_FA_master.csv")
+
+####################################
+#Hepato %DWT vrs Total Fatty Acids
+
+#data wrangling 
+condition_master %>%
+  filter(lme != "NA", #one crab collected outside the sampling design
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66","2019-207", "2019-212"),#likely tanners
+         maturity != 1) -> new.dat
+
+#% Plot: DWT vrs total FA
+new.dat %>%
+  ggplot(aes(Perc_DWT, Total_FA)) +
+  geom_point() +
+  theme_bw() + 
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x= "% DWT in Hepatopancreas", y = "Total FA (mg/g DWT)") +
+  facet_wrap(~year)
+
+#% Plot: DWT vrs total FA concentration - no 2019
+cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00")
+
+new.dat %>%
+  filter(year > 2019) %>%
+  ggplot(aes(Perc_DWT, Total_FA_Conc_DWT)) +
+  geom_point(aes(color=factor(year))) +
+  theme_bw() + 
+  geom_smooth(method = "lm", colour="black", level = 0.95) +
+  labs(x= "% DWT in Hepatopancreas", y = "Total FA per DWT (mg FA/g WWT)") +
+  theme(legend.title=element_blank()) +
+  scale_colour_manual(values=cbPalette)
+#facet_wrap(~lme)
+ggsave("./figures/Fig2.png", dpi=300)
+
+#% Linear regression: DWT vrs total FA concentration 
+new.dat %>%
+  filter(year > 2019) -> dat_sub
+mod1 <- lm(Total_FA_Conc_DWT~Perc_DWT, data=dat_sub) 
+summary(mod1)
+plot(mod1)
+
+#Let's remove some influential outliers 
+
+plot(cooks.distance(mod1), pch="*", cex=2, main="Influential Obs by Cook's distance") 
+abline(h = 4/(nrow(new.dat)), col="red")  # add cutoff line (critical Cooks D > 4/n)
+
+cooksD <- cooks.distance(mod1)
+influential <- cooksD[(cooksD > (3 * mean(cooksD, na.rm = TRUE)))]
+influential #46 points with Cook's Distance greater than 3x the mean, mostly in 2021
+
+names_of_influential <- names(influential)
+outliers <- dat_sub[names_of_influential,]
+dat_without_outliers <- dat_sub %>% anti_join(outliers)
+
+#Re-fit model with outliers removed 
+mod2 <- lm(Total_FA_Conc_DWT~Perc_DWT, data=dat_without_outliers) 
+plot(mod2)
+summary(mod2)
+
+#And now let's quickly assess relationship by year and region
+dat_without_outliers %>%
+  filter(year == 2021) %>%
+  lm(Total_FA_Conc_DWT~Perc_DWT, data = .) %>%
+  glance()
+
+dat_without_outliers %>%
+  filter(lme == "NBS") %>%
+  lm(Total_FA_Conc_DWT~Perc_DWT, data = .) %>%
+  glance()
+
+#####################################
+
+#Crab weight at size vrs % DWT by sex
+new.dat %>%
+  filter(!vial_id %in% c("2023-147", "2022-AKK-175")) %>% #outliers based on wgt- likely back deck errors
+  mutate(lw = crab_wgt/cw) %>%
+  ggplot(aes(lw, Total_FA_Conc_DWT, color=factor(year))) +
+  geom_point() +
+  theme_bw() + 
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x= "Crab weight/size ratio", y = "Total FA per DWT (mg FA/g WWT)")
+
+#% LM: weight/size ratio vrs total FA concentration - no 2019
+new.dat %>%
+  filter(year > 2019,
+         !vial_id %in% c("2023-147", "2022-AKK-175")) %>% #outliers based on wgt- likely back deck errors-> dat_sub
+  mutate(lw = crab_wgt/cw) -> wgt_dat
+mod2 <- lm(Total_FA_Conc_DWT~lw, data=wgt_dat) 
+summary(mod2)
+
+# Condition factor K vrs % DWT
+new.dat %>%
+  filter(!vial_id %in% c("2023-147", "2022-AKK-175")) %>% #outliers based on wgt- likely back deck errors
+  mutate(K=crab_wgt/(cw^3)) %>%
+  ggplot(aes(K, Total_FA_Conc_DWT, color=factor(year))) +
+  geom_point() +
+  theme_bw()  +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x= "Fultons K Condition Factor", y = "Total FA per DWT (mg FA/g WWT)") 

@@ -150,14 +150,7 @@ new.dat %>%
   labs(x= "% DWT in Hepatopancreas", y = "Total FA per DWT (mg FA/g WWT)") +
   theme(legend.title=element_blank()) +
   scale_colour_manual(values=cbPalette)
-  #facet_wrap(~lme)
-ggsave("./figures/Fig2.png", dpi=300)
-
-#% LM: DWT vrs total FA concentration - no 2019
-new.dat %>%
-  filter(year > 2019) -> dat_sub
-mod1 <- lm(Total_FA_Conc_DWT~Perc_DWT, data=dat_sub) 
-summary(mod1)
+  facet_wrap(~lme)
 
 #Crab weight at size vrs % DWT by sex
 new.dat %>%
@@ -168,14 +161,6 @@ new.dat %>%
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) +
   labs(x= "Crab weight/size ratio", y = "Total FA per DWT (mg FA/g WWT)")
-
-#% LM: weight/size ratio vrs total FA concentration - no 2019
-new.dat %>%
-  filter(year > 2019,
-         !vial_id %in% c("2023-147", "2022-AKK-175")) %>% #outliers based on wgt- likely back deck errors-> dat_sub
-         mutate(lw = crab_wgt/cw) -> wgt_dat
-  mod2 <- lm(Total_FA_Conc_DWT~lw, data=wgt_dat) 
-summary(mod2)
 
 # Condition factor K vrs % DWT
 new.dat %>%
