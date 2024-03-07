@@ -11,6 +11,8 @@ library(gganimate)
 library(viridis)
 library(ggridges)
 library(RColorBrewer)
+library(broom)
+
 
 condition_master <- read.csv("./data/total_FA_master.csv")
 
@@ -123,10 +125,10 @@ condition_master %>%
 #data wrangling 
 condition_master %>%
   filter(lme != "NA", #one crab collected outside the sampling design
-         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66","2019-207", "2019-212"),
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66","2019-207", "2019-212"),#likely tanners
          maturity != 1) -> new.dat
 
-#% DWT vrs total FA
+#% Plot: DWT vrs total FA
 new.dat %>%
   ggplot(aes(Perc_DWT, Total_FA, color=factor(year), label=vial_id)) +
   geom_point() +
@@ -136,47 +138,54 @@ new.dat %>%
   labs(x= "% DWT in Hepatopancreas", y = "Total FA (mg/g DWT)") +
   facet_wrap(~lme)
 
+#% Plot: DWT vrs total FA concentration - no 2019
+cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00")
 
-#% DWT vrs total FA concentration - no 2019
 new.dat %>%
   filter(year > 2019) %>%
-  ggplot(aes(Perc_DWT, Total_FA_Conc_DWT, color=factor(year))) +
-  geom_point() +
+  ggplot(aes(Perc_DWT, Total_FA_Conc_DWT)) +
+  geom_point(aes(color=factor(year))) +
   theme_bw() + 
-  geom_smooth(method = "lm", se = FALSE) +
+  geom_smooth(method = "lm", colour="black", level = 0.95) +
   labs(x= "% DWT in Hepatopancreas", y = "Total FA per DWT (mg FA/g WWT)") +
-  theme(legend.title=element_blank())
-ggsave("./figures/data exploration/DWTvFA.png", dpi=300)
+  theme(legend.title=element_blank()) +
+  scale_colour_manual(values=cbPalette)
+  #facet_wrap(~lme)
+ggsave("./figures/Fig2.png", dpi=300)
+
+#% LM: DWT vrs total FA concentration - no 2019
+new.dat %>%
+  filter(year > 2019) -> dat_sub
+mod1 <- lm(Total_FA_Conc_DWT~Perc_DWT, data=dat_sub) 
+summary(mod1)
 
 #Crab weight at size vrs % DWT by sex
 new.dat %>%
+  filter(!vial_id %in% c("2023-147", "2022-AKK-175")) %>% #outliers based on wgt- likely back deck errors
   mutate(lw = crab_wgt/cw) %>%
-  ggplot(aes(crab_wgt, lw, color=factor(year))) +
+  ggplot(aes(lw, Total_FA_Conc_DWT, color=factor(year))) +
   geom_point() +
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x= "Crab weight at size", y = "% DWT in hepatopancreas") +
-  facet_wrap(~sex, scales = "free_x")
+  labs(x= "Crab weight/size ratio", y = "Total FA per DWT (mg FA/g WWT)")
 
-#Crab size vrs % DWT by sex
+#% LM: weight/size ratio vrs total FA concentration - no 2019
 new.dat %>%
-  ggplot(aes(cw, Perc_DWT, color=factor(year))) +
-  geom_point() +
-  theme_bw() + 
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(x= "Carapace width (mm)", y = "% DWT in hepatopancreas") +
-  facet_wrap(~sex, scales = "free_x")
+  filter(year > 2019,
+         !vial_id %in% c("2023-147", "2022-AKK-175")) %>% #outliers based on wgt- likely back deck errors-> dat_sub
+         mutate(lw = crab_wgt/cw) -> wgt_dat
+  mod2 <- lm(Total_FA_Conc_DWT~lw, data=wgt_dat) 
+summary(mod2)
 
 # Condition factor K vrs % DWT
 new.dat %>%
-mutate(K=crab_wgt/(cw^3)*100000) %>%
-  ggplot(aes(K, Perc_DWT, color=factor(year))) +
+  filter(!vial_id %in% c("2023-147", "2022-AKK-175")) %>% #outliers based on wgt- likely back deck errors
+mutate(K=crab_wgt/(cw^3)) %>%
+  ggplot(aes(K, Total_FA_Conc_DWT, color=factor(year))) +
   geom_point() +
   theme_bw()  +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x= "Fultons K Condition Factor", y = "% DWT in hepatopancreas") +
-  facet_wrap(~sex, scales = "free_x")
-#I believe there's a better way to do this though...follow up
+  labs(x= "Fultons K Condition Factor", y = "Total FA per DWT (mg FA/g WWT)") 
 
 #############################################
 #SPATIAL/INTERANNUAL VARIATION IN CONDITION METRICS 
