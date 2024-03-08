@@ -77,7 +77,17 @@ model.dat %>%
   geom_histogram()
 
 #############################################
-#Prelim model 1: EBS only, %dWT ~ sex, cw, temperature, cpue, benthic invert,  
+#EBS Models: 
+
+#Most complex should be - or test density/temp/invert all seperate? 
+mod1_formula <-  bf(Perc_DWT ~ sex + cw + s(temperature, k = 4) + s(julian, k = 4)
+                      s(fourth.root.cpue, k=4) + s(fourth.root.invert, k=4) + (1 | year/region)) 
+
+
+
+
+
+#Model 1: %dWT ~ sex, cw, temperature, cpue, benthic invert,  
 
 mod1_formula <-  bf(Perc_DWT ~ sex + cw + s(temperature, k = 4) + 
                       s(fourth.root.cpue, k=4) + s(fourth.root.invert, k=4) + (1 | year/region)) 
@@ -359,5 +369,4 @@ conditional_effects(mod5)
   #response to density. now to just look at model with temperature b/c
 #Cant distinguish between density and temp in same model 
 
-#Tell both story of density and temperature- inverse density dependence post 
-#collapse 
+

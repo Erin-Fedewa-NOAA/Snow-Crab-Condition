@@ -8,14 +8,26 @@
 
 # load ----
 library(tidyverse)
-library(sf)
-library(ggmap)
-library(gganimate)
-library(viridis)
-library(ggridges)
+library(lubridate)
+library(rstan)
+library(brms)
+library(bayesplot)
+library(marginaleffects)
+library(emmeans)
+library(MARSS)
+library(corrplot)
+library(factoextra)
+library(patchwork)
+library(modelr)
+library(broom.mixed)
+library(pROC)
+library(ggthemes)
+library(tidybayes)
 library(RColorBrewer)
-library(broom)
-
+library(knitr)
+library(loo)
+library(sjPlot)
+source("./script/stan_utils.R")
 
 condition_master <- read.csv("./data/total_FA_master.csv")
 
@@ -28,9 +40,18 @@ condition_master %>%
          !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66","2019-207", "2019-212"),#likely tanners
          maturity != 1) -> new.dat
 
+#Let's look at distributions
+condition_master %>%
+  ggplot() +
+  geom_histogram(aes(Perc_DWT))
+
+condition_master %>%
+  ggplot() +
+  geom_histogram(aes(Total_FA_Conc_DWT))
+
 #% Plot: DWT vrs total FA
 new.dat %>%
-  ggplot(aes(Perc_DWT, Total_FA)) +
+  ggplot(aes(Perc_DWT, Total_FA_Conc_DWT)) +
   geom_point() +
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) +
@@ -50,7 +71,42 @@ new.dat %>%
   theme(legend.title=element_blank()) +
   scale_colour_manual(values=cbPalette)
 #facet_wrap(~lme)
-ggsave("./figures/Fig2.png", dpi=300)
+
+#Bayesian regression model 
+condition_1 <- brm(data = new.dat,
+            family = student,
+            Total_FA_Conc_DWT ~ Perc_DWT,
+            seed=1,
+            save_pars = save_pars(all = TRUE),
+            control = list(adapt_delta = 0.999, max_treedepth = 14))
+
+#Save output
+saveRDS(condition_1, file = "./output/condition_1.rds")
+condition_1 <- readRDS("./output/condition_1.rds")
+
+summary(condition_1)
+bayes_R2(condition_1)
+posterior_summary(condition_1)
+loo_c1 <- loo(condition_1)
+pareto_k_table(loo_c1)
+
+#Diagnostic Plots
+plot(condition_1, ask = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #% Linear regression: DWT vrs total FA concentration 
 new.dat %>%
