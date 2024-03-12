@@ -108,7 +108,7 @@ lipid %>%
   pivot_longer(!vial_id, names_to= "id", values_to = "data", values_transform = as.numeric) %>% #error- blanks converted to NA's
   pivot_wider(names_from ="vial_id", values_from="data") %>%
   mutate(vial_id = gsub(".","-",id, fixed = TRUE)) %>%
-  select(-id) %>%
+  select(-id, -Total_FA_Conc_DWT) %>% #We'll calculate total FA per DWT in the script below
   mutate(year = as.numeric(year)) -> lipid.dat
 
 #Create FA Biomarker Master by joining to haul data
@@ -117,7 +117,7 @@ lipid.dat %>%
   #calculate additional WWT:DWT/FA metrics
   mutate(DWT_WWT = hepato_dwt/hepato_wwt,
          Perc_DWT = DWT_WWT*100,
-         Total_FA = as.numeric(Total_FA_Conc_WWT)/DWT_WWT,
+         Total_FA_Conc_DWT = as.numeric(Total_FA_Conc_WWT)/DWT_WWT,
          WWT_DWT = hepato_wwt/hepato_dwt) %>%
   write_csv(file="./data/FA_biomarker_master.csv")
 
@@ -128,7 +128,7 @@ lipid.dat %>%
 #calculate additional WWT:DWT/FA metrics
  mutate(DWT_WWT = hepato_dwt/hepato_wwt,
  Perc_DWT = DWT_WWT*100,
- Total_FA = as.numeric(Total_FA_Conc_WWT)/DWT_WWT,
+ Total_FA_Conc_DWT = as.numeric(Total_FA_Conc_WWT)/DWT_WWT,
  WWT_DWT = hepato_wwt/hepato_dwt) %>%
  write_csv(file="./data/total_FA_master.csv")
 
