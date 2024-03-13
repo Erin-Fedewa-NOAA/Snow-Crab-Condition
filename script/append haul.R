@@ -51,7 +51,7 @@ ebs_haul %>%
   filter(cruise %in% c(201901, 201902, 202101, 202102, 202201, 202202, 202301, 202302),
          haul_type==3) %>%
   select(vessel, cruise, haul, mid_latitude, mid_longitude, gis_station, 
-         bottom_depth, gear_temperature) %>%
+         bottom_depth, gear_temperature, start_date) %>%
   distinct() -> snow_haul
 
 #Join haul and biometric datasets 

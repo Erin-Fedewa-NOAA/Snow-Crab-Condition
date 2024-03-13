@@ -1,14 +1,13 @@
-#Investigate drivers of condition in C.opilio using Bayesian multivariate models
+#Investigate drivers of condition in EBS snow crab using Bayesian multivariate models
 
-#To do: Need to append start date to include Julian day
-#Fourth root transform cpue
-#Date/location correct condition data with GAM
+##NOTE: WWT:DWT ratios appear to be affected by difference in sampling methods in 
+  #2019. B/c total FA per WWT were not subject to the WWT:DWT discrepancy, it will be 
+  #used as response variable in all further analyses. 
+
 #How to incorporate lags in this analysis?
-#pull out mature crab? 
-#EBS/NBS models
 
 # Author: Erin Fedewa
-# last updated: 10/18/23
+# last updated: 3/12/24
 
 # load ----
 library(tidyverse)
@@ -45,23 +44,22 @@ condition_master %>%
   ggplot() +
   geom_histogram(aes(total_benthic_cpue))
 
-#data wrangling- just going to subset for EBS only for first few model runs  
+#data wrangling- EBS dataset  
 condition_master %>%
+  mutate(julian=yday(parse_date_time(start_date, "mdy", "US/Alaska"))) %>%  #add julian date 
   filter(lme == "EBS", 
-         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66", #lg females-Tanners?
-                         "2019-207", "2019-212"), # %DWT outliers- need to investigate
-         maturity != 1,
-         Perc_DWT != "NA") %>%
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"), 
+         maturity != 1) %>%
   mutate(year = as.factor(year),
          sex = as.factor(sex),
          region = as.factor(sample_region),
          station = as.factor(gis_station),
          temperature = as.numeric(gear_temperature),
          fourth.root.cpue = as.numeric(cpue^0.25),
-         fourth.root.invert = as.numeric(total_benthic_cpue^0.25)) -> model.dat 
+         fourth.root.invert = as.numeric(total_benthic_cpue^0.25)) -> ebs.dat 
 
 #Assess collinearity b/w covariates 
-model.dat %>%
+ebs.dat %>%
   group_by(year, station) %>%
   summarise(temperature = mean(temperature),
             latitude = mean(mid_latitude),
@@ -71,9 +69,9 @@ model.dat %>%
 cor(corr.dat[,3:6]) #All < 0.6
 corrplot(cor(corr.dat[,3:6]), method = 'number') 
 
-#Distribution of response variable- check family!
-model.dat %>%
-  ggplot(aes(Perc_DWT)) + 
+#Distribution of response variable
+ebs.dat %>%
+  ggplot(aes(Total_FA_Conc_WWT)) + 
   geom_histogram()
 
 #############################################
@@ -93,7 +91,7 @@ mod1_formula <-  bf(Perc_DWT ~ sex + cw + s(temperature, k = 4) +
                       s(fourth.root.cpue, k=4) + s(fourth.root.invert, k=4) + (1 | year/region)) 
 
 mod1 <- brm(mod1_formula,
-               data = model.dat,
+               data = ebs.dat,
                 family = gaussian,
                cores = 4, chains = 4, iter = 2500,
                save_pars = save_pars(all = TRUE),
@@ -143,7 +141,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
-  geom_point(data = model.dat, aes(x = fourth.root.cpue, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
+  geom_point(data = ebs.dat, aes(x = fourth.root.cpue, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
   labs(x = "CPUE", y = "") +
   theme_bw() 
 
@@ -170,7 +168,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
-  geom_point(data = model.dat, aes(x = temperature, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
+  geom_point(data = ebs.dat, aes(x = temperature, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
   labs(x = "Temperature (C)", y = "") +
   theme_bw() 
 
@@ -197,7 +195,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
-  geom_point(data = model.dat, aes(x = fourth.root.invert, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
+  geom_point(data = ebs.dat, aes(x = fourth.root.invert, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
   labs(x = "Benthic Invertebrate Density", y = "") +
   theme_bw() 
 
@@ -226,7 +224,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
-  geom_point(data = model.dat, aes(x = cw, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
+  geom_point(data = ebs.dat, aes(x = cw, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
   labs(x = "Carapace Width (mm)", y = "") +
   theme_bw() 
 
@@ -251,7 +249,7 @@ mod2_formula <-  bf(Perc_DWT ~ sex +
                       s(fourth.root.cpue, k=4)  + year + (1 | region)) 
 
 mod2 <- brm(mod2_formula,
-            data = model.dat,
+            data = ebs.dat,
             family = gaussian,
             cores = 4, chains = 4, iter = 2500,
             save_pars = save_pars(all = TRUE),
@@ -294,7 +292,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
-  geom_point(data = model.dat, aes(x = fourth.root.cpue, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
+  geom_point(data = ebs.dat, aes(x = fourth.root.cpue, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
   labs(x = "CPUE", y = "") +
   theme_bw() 
 
@@ -304,7 +302,7 @@ mod3_formula <-  bf(Perc_DWT ~ sex + year +
                         year/fourth.root.cpue + (1 | region)) 
 
 mod3 <- brm(mod3_formula,
-            data = model.dat,
+            data = ebs.dat,
             family = gaussian,
             cores = 4, chains = 4, iter = 2500,
             save_pars = save_pars(all = TRUE),
@@ -331,7 +329,7 @@ mod4_formula <-  bf(Perc_DWT ~ sex +
                       s(temperature, k=4) + (1 | region)) 
 
 mod4 <- brm(mod4_formula,
-            data = model.dat,
+            data = ebs.dat,
             family = gaussian,
             cores = 4, chains = 4, iter = 2500,
             save_pars = save_pars(all = TRUE),
@@ -353,7 +351,7 @@ mod5_formula <-  bf(Perc_DWT ~ sex + s(temperature, k=4) +
 #try s(fourth.root.cpue, k=4, by=year)
 
 mod5 <- brm(mod5_formula,
-            data = model.dat,
+            data = ebs.dat,
             family = gaussian,
             cores = 4, chains = 4, iter = 2500,
             save_pars = save_pars(all = TRUE),
