@@ -75,7 +75,7 @@ new.dat %>%
 #########
 #Bayesian regression model (FA ~ %DWT)
 condition_1 <- brm(data = new.dat,
-            family = gaussian,
+            family = student, #Student's t distribution- more robust to outliers
             Total_FA_Conc_DWT ~ 1 + Perc_DWT,
             seed=1,
             save_pars = save_pars(all = TRUE),

@@ -4,8 +4,6 @@
   #2019. B/c total FA per WWT were not subject to the WWT:DWT discrepancy, it will be 
   #used as response variable in all further analyses. 
 
-#How to incorporate lags in this analysis?
-
 # Author: Erin Fedewa
 # last updated: 3/12/24
 
@@ -69,13 +67,65 @@ ebs.dat %>%
 cor(corr.dat[,3:6]) #All < 0.6
 corrplot(cor(corr.dat[,3:6]), method = 'number') 
 
-#Distribution of response variable
+#Distribution of response variable - choosing a brms family 
 ebs.dat %>%
   ggplot(aes(Total_FA_Conc_WWT)) + 
-  geom_histogram()
+  geom_density() #pretty darn left skewed 
+
+#Test glm model to look at distribution of residuals 
+test.1 <- glm(Total_FA_Conc_WWT ~ temperature, data=ebs.dat, family =gaussian(link=log))
+plot(test.1) #overdispersion in qqplot, not gaussian! 
+plot(density(resid(test.1, type='deviance'))) #very long tail, much heavier than Gaussian
+
+# fitting a test brms model with a Gaussian likelihood - truncating response at 0, else models predict values < 0
+model_normal <- brm(Total_FA_Conc_WWT | trunc(lb = 0) ~ 1, family = gaussian(link="identity"), data = ebs.dat)
+summary(model_normal)
+
+# fitting a test brms model with a skew normal likelihood
+model_skew <- brm(Total_FA_Conc_WWT ~ 1, family = skew_normal(link="log"), data = ebs.dat)
+summary(model_skew)
+
+# fitting a test brms model with a gamma likelihood
+model_gamma <- brm(Total_FA_Conc_WWT ~ 1, family = "gamma", data = ebs.dat)
+summary(model_gamma)
+
+# fitting a test brms model with a lognormal likelihood
+model_log <- brm(Total_FA_Conc_WWT ~ 1, family = lognormal(), data = ebs.dat)
+summary(model_log)
+
+# posterior predictive checking
+pp_check(model_normal, ndraws = 1e2) + pp_check(model_skew, ndraws = 1e2) +
+ pp_check(model_gamma, ndraws = 1e2) + pp_check(model_log, ndraws = 1e2)
+
+# posterior predictive checking - boxplots
+pp_check(model_normal, type = "boxplot", ndraws = 20) + pp_check(model_skew, type = "boxplot", ndraws = 20) +
+  pp_check(model_gamma, type = "boxplot", ndraws = 20) + pp_check(model_log, type = "boxplot", ndraws = 20)
+
+#let's look at the distribution of minimum values for posterior distributions vrs data
+pp_check(model_normal, type = "stat", stat = "min") + pp_check(model_skew, type = "stat", stat = "min") +
+  pp_check(model_gamma, type = "stat", stat = "min") + pp_check(model_log, type = "stat", stat = "min")
+#skew normal is predicting negative values 
+
+#now maximum values
+pp_check(model_normal, type = "stat", stat = "max") + pp_check(model_skew, type = "stat", stat = "max") +
+    pp_check(model_gamma, type = "stat", stat = "max") + pp_check(model_log, type = "stat", stat = "max")
+#lognormal is way overshooting max 
+
+#and means
+pp_check(model_normal, type = "stat", stat = "mean") + pp_check(model_skew, type = "stat", stat = "mean") +
+  pp_check(model_gamma, type = "stat", stat = "mean") + pp_check(model_log, type = "stat", stat = "mean")
+  
+model_normal <- add_criterion(model_normal, "waic")
+model_skew <- add_criterion(model_skew, "waic")
+model_gamma <- add_criterion(model_gamma, "waic")
+model_log <- add_criterion(model_log, "waic")
+  loo_compare(model_normal, model_skew, model_gamma, model_log, criterion = "waic")
+#predictive accuracy highest for gaussian truncated model
+  
+#to do- how to add bounds to skew-normal??? 
 
 #############################################
-#EBS Models: 
+#EBS Models: 1) sqrt with gaussian/"identity link
 
 #Most complex should be - or test density/temp/invert all seperate? 
 mod1_formula <-  bf(Perc_DWT ~ sex + cw + s(temperature, k = 4) + s(julian, k = 4)
@@ -107,6 +157,8 @@ neff_lowest(mod1$fit)
 rhat_highest(mod1$fit)
 summary(mod1)
 bayes_R2(mod1)
+
+pp_check(mod1)
 
 #Diagnostic Plots
 plot(mod1, ask = FALSE)
