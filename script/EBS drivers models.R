@@ -33,10 +33,10 @@ source("./script/stan_utils.R")
 condition_master <- read.csv("./data/total_FA_master.csv")
 
 ################################
-#look at distributions of cpue response variables 
+#look at distributions of cpue covariates 
 condition_master %>%
   ggplot() +
-  geom_histogram(aes(cpue))
+  geom_histogram(aes(log(cpue + 1)))
 
 condition_master %>%
   ggplot() +
@@ -47,7 +47,8 @@ condition_master %>%
   mutate(julian=yday(parse_date_time(start_date, "mdy", "US/Alaska"))) %>%  #add julian date 
   filter(lme == "EBS", 
          !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"), 
-         maturity != 1) %>%
+         maturity != 1,
+         Total_FA_Conc_WWT > 0) %>%
   mutate(year = as.factor(year),
          sex = as.factor(sex),
          region = as.factor(sample_region),
@@ -67,9 +68,10 @@ ebs.dat %>%
 cor(corr.dat[,3:6]) #All < 0.6
 corrplot(cor(corr.dat[,3:6]), method = 'number') 
 
+##########################################
 #Distribution of response variable - choosing a brms family 
 ebs.dat %>%
-  ggplot(aes(Total_FA_Conc_WWT)) + 
+  ggplot(aes(log(Total_FA_Conc_WWT))) + 
   geom_density() #pretty darn left skewed 
 
 #Test glm model to look at distribution of residuals 
@@ -82,11 +84,22 @@ plot(density(resid(test.1, type='deviance'))) #very long tail, much heavier than
 model_normal <- brm(Total_FA_Conc_WWT | trunc(lb = 0) ~ 1, family = gaussian(link="identity"), data = ebs.dat)
 summary(model_normal)
 
-# fitting a test brms model with a skew normal likelihood
+#Gaussian with log response so no < 0 predictions
+model_normal_log <- brm(log(Total_FA_Conc_WWT) ~ 1, family = gaussian(link="identity"), data = ebs.dat)
+summary(model_normal_log)
+
+# fitting a test brms model with a skew normal likelihood (more flexible distribution)
 model_skew <- brm(Total_FA_Conc_WWT  ~ 1, family = skew_normal(), data = ebs.dat)
 summary(model_skew)
+#Negative posterior predictions for response
+
+#Bounded skew normal 
+model_skew_bound <- brm(Total_FA_Conc_WWT | trunc(lb = 0)  ~ 1, family = skew_normal(), data = ebs.dat)
 #If bounded- predictions cannot be evaluated properly at the lower bound, leading to NAs?
-#If not bounded, negative posterior predictions for response
+
+#skew normal with log response 
+model_skew_log <- brm(log(Total_FA_Conc_WWT)  ~ 1, family = skew_normal(), data = ebs.dat)
+pp_check(model_skew_log, ndraws = 1e2)
 
 # fitting a test brms model with a gamma likelihood
 model_gamma <- brm(Total_FA_Conc_WWT ~ 1, family = "gamma", data = ebs.dat)
@@ -119,15 +132,36 @@ pp_check(model_normal, type = "stat", stat = "max") + pp_check(model_skew, type 
 pp_check(model_normal, type = "stat", stat = "mean") + pp_check(model_skew, type = "stat", stat = "mean") +
   pp_check(model_gamma, type = "stat", stat = "mean") + pp_check(model_log, type = "stat", stat = "mean")
   
+#Which models are providing best predictions?
 model_normal <- add_criterion(model_normal, "waic")
 model_skew <- add_criterion(model_skew, "waic")
 model_gamma <- add_criterion(model_gamma, "waic")
 model_log <- add_criterion(model_log, "waic")
   loo_compare(model_normal, model_skew, model_gamma, model_log, criterion = "waic")
-#predictive accuracy highest for gaussian truncated model
+#predictive accuracy highest for gaussian truncated model- but probably b/c skew normal isn't truncated?
   
+#Let's include log(y) models, but we need Jacobian correction to make models comparable 
+loo_normal_log <- loo(model_normal_log)
+loo_normal_trunc <- loo(model_normal)
+loo_skew_trunc <- loo(model_skew_bound)
+loo_skew_log <- loo(model_skew_log)
+
+loo_normal_log_jacobian <- loo_normal_log
+loo_normal_log_jacobian$pointwise[,1] <- loo_normal_log_jacobian$pointwise[,1] - log(ebs.dat$Total_FA_Conc_WWT)
+loo_skew_log_jacobian <- loo_skew_log
+loo_skew_log_jacobian$pointwise[,1] <- loo_skew_log_jacobian$pointwise[,1] - log(ebs.dat$Total_FA_Conc_WWT)
+
+loo_compare(loo_normal_trunc, loo_normal_log_jacobian, loo_skew_log_jacobian)
+#Overall summary: The more flexible skew normal model continues to fit the data best, although a truncated
+  #skew normal model is producing NAs. More complex models with added covariates may improve data fit, 
+  #but via Stan forum consensus (https://discourse.mc-stan.org/t/choosing-a-sampling-distribution-for-left-skewed-data/34497/6)
+  #we'll roll with a skew normal distribution and log(y) response 
 #############################################
-#EBS Models: 1) sqrt with gaussian/"identity link
+#EBS Models: 
+
+#to sort out- skew normal log(y) vrs skew normal truncated
+#priors?
+#model structure 
 
 #Most complex should be - or test density/temp/invert all seperate? 
 mod1_formula <-  bf(Perc_DWT ~ sex + cw + s(temperature, k = 4) + s(julian, k = 4)
@@ -396,16 +430,11 @@ conditional_effects(mod4)
 
 #############################################
 
-mod5_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0)  ~ sex + s(temperature, k=4) +
-                      year/fourth.root.cpue + (1 | region)) 
-#try s(fourth.root.cpue, k=4, by=year)
+mod5_formula <-  bf(Total_FA_Conc_WWT  ~ cw + s(temperature, k=4)  + (1 | region)) 
 
 mod5 <- brm(mod5_formula,
             data = ebs.dat,
-            family = skew_normal(
-              link = "identity", 
-              link_sigma = "log", 
-              link_alpha = "identity"),
+            family = skew_normal(),
             cores = 4, chains = 4, iter = 2500,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
@@ -416,6 +445,13 @@ mod5 <- readRDS("./output/mod5.rds")
 summary(mod5)
 conditional_effects(mod5)
 pp_check(mod5, type="boxplot")
+plot(conditional_smooths(mod5), ask = FALSE)
+
+check_hmc_diagnostics(mod5$fit)
+neff_lowest(mod1$fit)
+rhat_highest(mod1$fit)
+summary(mod2)
+bayes_R2(mod5)
 
 #Not estimating temperature effect in first model- low condition with different
   #response to density. now to just look at model with temperature b/c
@@ -424,3 +460,5 @@ pp_check(mod5, type="boxplot")
 #def need to truncate if using gaussian
 #skew pp check looks better, but still neg values (running with trunctation now)
 #next: run inverse gausian 
+
+#try s(fourth.root.cpue, k=4, by=year)
