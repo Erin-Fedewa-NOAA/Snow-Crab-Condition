@@ -78,12 +78,15 @@ plot(test.1) #overdispersion in qqplot, not gaussian!
 plot(density(resid(test.1, type='deviance'))) #very long tail, much heavier than Gaussian
 
 # fitting a test brms model with a Gaussian likelihood - truncating response at 0, else models predict values < 0
+  #ie. responses out of bounds are discarded
 model_normal <- brm(Total_FA_Conc_WWT | trunc(lb = 0) ~ 1, family = gaussian(link="identity"), data = ebs.dat)
 summary(model_normal)
 
 # fitting a test brms model with a skew normal likelihood
-model_skew <- brm(Total_FA_Conc_WWT ~ 1, family = skew_normal(link="log"), data = ebs.dat)
+model_skew <- brm(Total_FA_Conc_WWT  ~ 1, family = skew_normal(), data = ebs.dat)
 summary(model_skew)
+#If bounded- predictions cannot be evaluated properly at the lower bound, leading to NAs?
+#If not bounded, negative posterior predictions for response
 
 # fitting a test brms model with a gamma likelihood
 model_gamma <- brm(Total_FA_Conc_WWT ~ 1, family = "gamma", data = ebs.dat)
@@ -94,12 +97,13 @@ model_log <- brm(Total_FA_Conc_WWT ~ 1, family = lognormal(), data = ebs.dat)
 summary(model_log)
 
 # posterior predictive checking
-pp_check(model_normal, ndraws = 1e2) + pp_check(model_skew, ndraws = 1e2) +
- pp_check(model_gamma, ndraws = 1e2) + pp_check(model_log, ndraws = 1e2)
+  pp_check(model_normal, ndraws = 1e2) + pp_check(model_skew, ndraws = 1e2) +
+ pp_check(model_gamma, ndraws = 1e2) + pp_check(model_log, ndraws = 1e2) 
+#skew normal captures mean and variance best, none of the models picking up apparent bimodality of data 
 
 # posterior predictive checking - boxplots
 pp_check(model_normal, type = "boxplot", ndraws = 20) + pp_check(model_skew, type = "boxplot", ndraws = 20) +
-  pp_check(model_gamma, type = "boxplot", ndraws = 20) + pp_check(model_log, type = "boxplot", ndraws = 20)
+  pp_check(model_gamma, type = "boxplot", ndraws = 20) + pp_check(model_log, type = "boxplot", ndraws = 20) 
 
 #let's look at the distribution of minimum values for posterior distributions vrs data
 pp_check(model_normal, type = "stat", stat = "min") + pp_check(model_skew, type = "stat", stat = "min") +
@@ -122,18 +126,12 @@ model_log <- add_criterion(model_log, "waic")
   loo_compare(model_normal, model_skew, model_gamma, model_log, criterion = "waic")
 #predictive accuracy highest for gaussian truncated model
   
-#to do- how to add bounds to skew-normal??? 
-
 #############################################
 #EBS Models: 1) sqrt with gaussian/"identity link
 
 #Most complex should be - or test density/temp/invert all seperate? 
 mod1_formula <-  bf(Perc_DWT ~ sex + cw + s(temperature, k = 4) + s(julian, k = 4)
                       s(fourth.root.cpue, k=4) + s(fourth.root.invert, k=4) + (1 | year/region)) 
-
-
-
-
 
 #Model 1: %dWT ~ sex, cw, temperature, cpue, benthic invert,  
 
@@ -398,13 +396,16 @@ conditional_effects(mod4)
 
 #############################################
 
-mod5_formula <-  bf(Perc_DWT ~ sex + s(temperature, k=4) +
+mod5_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0)  ~ sex + s(temperature, k=4) +
                       year/fourth.root.cpue + (1 | region)) 
 #try s(fourth.root.cpue, k=4, by=year)
 
 mod5 <- brm(mod5_formula,
             data = ebs.dat,
-            family = gaussian,
+            family = skew_normal(
+              link = "identity", 
+              link_sigma = "log", 
+              link_alpha = "identity"),
             cores = 4, chains = 4, iter = 2500,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
@@ -414,9 +415,12 @@ saveRDS(mod5, file = "./output/mod5.rds")
 mod5 <- readRDS("./output/mod5.rds")
 summary(mod5)
 conditional_effects(mod5)
+pp_check(mod5, type="boxplot")
 
 #Not estimating temperature effect in first model- low condition with different
   #response to density. now to just look at model with temperature b/c
 #Cant distinguish between density and temp in same model 
 
-
+#def need to truncate if using gaussian
+#skew pp check looks better, but still neg values (running with trunctation now)
+#next: run inverse gausian 
