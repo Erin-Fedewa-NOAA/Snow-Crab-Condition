@@ -30,6 +30,11 @@ library(loo)
 library(sjPlot)
 source("./script/stan_utils.R")
 
+if (!requireNamespace("remotes")) {
+  install.packages("remotes")
+}
+remotes::install_github("paul-buerkner/brms")
+
 condition_master <- read.csv("./data/total_FA_master.csv")
 
 ################################
@@ -75,62 +80,67 @@ ebs.dat %>%
   geom_density() #pretty darn left skewed 
 
 #Test glm model to look at distribution of residuals 
-test.1 <- glm(Total_FA_Conc_WWT ~ temperature, data=ebs.dat, family =gaussian(link=log))
+test.1 <- glm(Total_FA_Conc_WWT ~ year, data=ebs.dat, family =gaussian(link=log))
 plot(test.1) #overdispersion in qqplot, not gaussian! 
 plot(density(resid(test.1, type='deviance'))) #very long tail, much heavier than Gaussian
 
 # fitting a test brms model with a Gaussian likelihood - truncating response at 0, else models predict values < 0
   #ie. responses out of bounds are discarded
-model_normal <- brm(Total_FA_Conc_WWT | trunc(lb = 0) ~ 1, family = gaussian(link="identity"), data = ebs.dat)
+model_normal <- brm(Total_FA_Conc_WWT | trunc(lb = 0) ~ year, family = gaussian(link="identity"), data = ebs.dat)
 summary(model_normal)
 
 #Gaussian with log response so no < 0 predictions
-model_normal_log <- brm(log(Total_FA_Conc_WWT) ~ 1, family = gaussian(link="identity"), data = ebs.dat)
+model_normal_log <- brm(log(Total_FA_Conc_WWT) ~ year, family = gaussian(link="identity"), data = ebs.dat)
 summary(model_normal_log)
 
 # fitting a test brms model with a skew normal likelihood (more flexible distribution)
-model_skew <- brm(Total_FA_Conc_WWT  ~ 1, family = skew_normal(), data = ebs.dat)
+model_skew <- brm(Total_FA_Conc_WWT  ~ year, family = skew_normal(), data = ebs.dat)
 summary(model_skew)
 #Negative posterior predictions for response
 
 #Bounded skew normal 
-model_skew_bound <- brm(Total_FA_Conc_WWT | trunc(lb = 0)  ~ 1, family = skew_normal(), data = ebs.dat)
+model_skew_bound <- brm(Total_FA_Conc_WWT | trunc(lb = 0)  ~ year, family = skew_normal(), data = ebs.dat)
 #If bounded- predictions cannot be evaluated properly at the lower bound, leading to NAs?
 
 #skew normal with log response 
-model_skew_log <- brm(log(Total_FA_Conc_WWT)  ~ 1, family = skew_normal(), data = ebs.dat)
+model_skew_log <- brm(log(Total_FA_Conc_WWT)  ~ year, family = skew_normal(), data = ebs.dat)
 pp_check(model_skew_log, ndraws = 1e2)
 
 # fitting a test brms model with a gamma likelihood
-model_gamma <- brm(Total_FA_Conc_WWT ~ 1, family = "gamma", data = ebs.dat)
+model_gamma <- brm(Total_FA_Conc_WWT ~ year, family = "gamma", data = ebs.dat)
 summary(model_gamma)
 
 # fitting a test brms model with a lognormal likelihood
-model_log <- brm(Total_FA_Conc_WWT ~ 1, family = lognormal(), data = ebs.dat)
+model_log <- brm(Total_FA_Conc_WWT ~ year, family = lognormal(), data = ebs.dat)
 summary(model_log)
 
 # posterior predictive checking
   pp_check(model_normal, ndraws = 1e2) + pp_check(model_skew, ndraws = 1e2) +
- pp_check(model_gamma, ndraws = 1e2) + pp_check(model_log, ndraws = 1e2) 
+  pp_check(model_skew_log, ndraws = 1e2)+ pp_check(model_gamma, ndraws = 1e2) + pp_check(model_log, ndraws = 1e2) 
 #skew normal captures mean and variance best, none of the models picking up apparent bimodality of data 
 
 # posterior predictive checking - boxplots
 pp_check(model_normal, type = "boxplot", ndraws = 20) + pp_check(model_skew, type = "boxplot", ndraws = 20) +
-  pp_check(model_gamma, type = "boxplot", ndraws = 20) + pp_check(model_log, type = "boxplot", ndraws = 20) 
+  pp_check(model_skew_log, type = "boxplot", ndraws = 20) + pp_check(model_gamma, type = "boxplot", ndraws = 20) + 
+  pp_check(model_log, type = "boxplot", ndraws = 20) 
+#skew normal model predicting negative responses 
 
 #let's look at the distribution of minimum values for posterior distributions vrs data
 pp_check(model_normal, type = "stat", stat = "min") + pp_check(model_skew, type = "stat", stat = "min") +
-  pp_check(model_gamma, type = "stat", stat = "min") + pp_check(model_log, type = "stat", stat = "min")
+  pp_check(model_skew_log, type = "stat", stat = "min") + pp_check(model_gamma, type = "stat", stat = "min") + 
+  pp_check(model_log, type = "stat", stat = "min")
 #skew normal is predicting negative values 
 
 #now maximum values
 pp_check(model_normal, type = "stat", stat = "max") + pp_check(model_skew, type = "stat", stat = "max") +
-    pp_check(model_gamma, type = "stat", stat = "max") + pp_check(model_log, type = "stat", stat = "max")
+  pp_check(model_skew_log, type = "stat", stat = "max") + pp_check(model_gamma, type = "stat", stat = "max") + 
+  pp_check(model_log, type = "stat", stat = "max")
 #lognormal is way overshooting max 
 
 #and means
 pp_check(model_normal, type = "stat", stat = "mean") + pp_check(model_skew, type = "stat", stat = "mean") +
-  pp_check(model_gamma, type = "stat", stat = "mean") + pp_check(model_log, type = "stat", stat = "mean")
+  pp_check(model_skew_log, type = "stat", stat = "mean") + pp_check(model_gamma, type = "stat", stat = "mean") + 
+  pp_check(model_log, type = "stat", stat = "mean")
   
 #Which models are providing best predictions?
 model_normal <- add_criterion(model_normal, "waic")
@@ -434,7 +444,7 @@ mod5_formula <-  bf(Total_FA_Conc_WWT  ~ cw + s(temperature, k=4)  + (1 | region
 
 mod5 <- brm(mod5_formula,
             data = ebs.dat,
-            family = skew_normal(),
+            family = "gamma",
             cores = 4, chains = 4, iter = 2500,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
