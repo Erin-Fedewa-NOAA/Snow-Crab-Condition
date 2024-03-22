@@ -135,7 +135,7 @@ condition_master %>%
 #############################################
 #SPATIAL/INTERANNUAL VARIATION IN CONDITION METRICS 
 
-#data wrangling 
+#data wrangling - use this dataset for all further analyses!!
 condition_master %>%
   filter(lme != "NA", #one crab collected outside the sampling design
          !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66","2019-207", "2019-212"),#likely tanners
@@ -186,9 +186,9 @@ new.dat %>%
   theme(axis.text.x = element_text(size = 11)) +
   facet_wrap(~lme, labeller = lme_names)
 
-#density plot, EBS only 
+#density plot 
 new.dat %>%
-  filter(lme == "EBS") %>%
+  #filter(lme == "EBS") %>%
   ggplot(aes(Total_FA_Conc_WWT, factor(year))) +
   geom_density_ridges(aes(fill=factor(year)), scale=2,
                       quantile_lines=TRUE,
@@ -202,7 +202,8 @@ new.dat %>%
   labs(y= "", x = "Snow Crab Energetic Condition (Total FA per WWT)") +
   theme(legend.position="none") +
   theme(axis.text.y = element_text(size = 14)) +
-  theme(axis.text.x = element_text(size = 11))
+  theme(axis.text.x = element_text(size = 11)) +
+  facet_wrap(~lme, labeller = lme_names)
   
 #FA by region and year
 new.dat %>%
@@ -316,7 +317,7 @@ ggsave("./figures/data exploration/stationxsizexFA.png", dpi=300)
 ggplot(plot, aes(temperature, avg_FA, color=as.factor(year))) +
   facet_wrap(~lme) +
   geom_point() + 
-  geom_smooth(method = "gam") +
+  geom_smooth(method = "gam", knots = 3) +
   theme_bw() +
   labs(x="Mean temperature at station (C)", y="Total FA per WWT (mg FA/g WWT)")
 ggsave("./figures/data exploration/stationxtempxFA.png", dpi=300)
@@ -334,16 +335,16 @@ ggsave("./figures/data exploration/stationxcpuexFA.png", dpi=300)
 ggplot(plot, aes(invert, avg_FA, color=as.factor(year))) +
   facet_wrap(~lme) +
   geom_point() + 
-  geom_smooth(method = "gam") +
+  geom_smooth(method = "gam", knots = 3) +
   theme_bw() +
   labs(x="Benthic invert density at station", y="Total FA per WWT (mg FA/g WWT)")
 ggsave("./figures/data exploration/stationxinvertcpuexFA.png", dpi=300)
 
 ################################################
-#SPATIAL PLOTS
+#SPATIAL PLOTS - response and covariates 
 
 #Avg Total FA by station/year
-condition_master %>% 
+new.dat %>% 
   group_by(year, mid_latitude, mid_longitude) %>%
   summarise(avg_FA=mean(Total_FA_Conc_WWT, na.rm=T)) %>%
   ggplot() + 
@@ -353,14 +354,50 @@ condition_master %>%
   scale_color_viridis() +
   theme_bw() +
   facet_wrap(~year) +
-  labs(y= "Latitude", color = "Energetic Condition\n(Total FA per DWT)")
-ggsave("./figures/data exploration/avgDWT_map.png", dpi=300)
+  labs(y= "Latitude", color = "Energetic Condition\n(Total FA per WWT)")
+ggsave("./figures/data exploration/avgWWT_map.png", dpi=300)
 
-#Follow up on this- move into survey grid shapefiles- potentially use an 
-  #IDW approach? 
+#temperature by station/year
+new.dat %>% 
+  group_by(year, lme, gis_station, mid_latitude, mid_longitude) %>%
+  summarise(temperature = mean(gear_temperature)) %>%
+  ggplot() + 
+  geom_polygon(data = usa, aes(x = long, y = lat, group = group))+
+  geom_point(aes(x = mid_longitude, y = mid_latitude, color=temperature))+
+  coord_quickmap(xlim = c(-179, -158), ylim = c(53, 66)) +
+  scale_color_viridis() +
+  theme_bw() +
+  facet_wrap(~year) +
+  labs(y= "Latitude", color = "Bottom Temperature (C)")
+
+#bentic invert cpue by station/yr
+new.dat %>% 
+  group_by(year, lme, gis_station, mid_latitude, mid_longitude) %>%
+  summarise(invert = mean(total_benthic_cpue^0.25, na.rm=T)) %>%
+  ggplot() + 
+  geom_polygon(data = usa, aes(x = long, y = lat, group = group))+
+  geom_point(aes(x = mid_longitude, y = mid_latitude, color=invert))+
+  coord_quickmap(xlim = c(-179, -158), ylim = c(53, 66)) +
+  scale_color_viridis() +
+  theme_bw() +
+  facet_wrap(~year) +
+  labs(y= "Latitude", color = "Invert CPUE (kg/km2)")
+
+#snow crab cpue by station/yr
+new.dat %>% 
+  group_by(year, lme, gis_station, mid_latitude, mid_longitude) %>%
+  summarise(CPUE = mean(cpue^0.25, na.rm=T)) %>%
+  ggplot() + 
+  geom_polygon(data = usa, aes(x = long, y = lat, group = group))+
+  geom_point(aes(x = mid_longitude, y = mid_latitude, color=CPUE))+
+  coord_quickmap(xlim = c(-179, -158), ylim = c(53, 66)) +
+  scale_color_viridis() +
+  theme_bw() +
+  facet_wrap(~year) +
+  labs(y= "Latitude", color = "Snow Crab Density")
 
 ##########################################
-##TO NOTE:
+##TAKE AWAYS TO NOTE:
 #In 2019, there are 23 crab samples that have no associated FA data. Labels were lost 
   #during shipment of these samples so FA were not run
 #Note that there are a few BCS visually positive crab noted. These crab were not extreme outliers 

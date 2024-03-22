@@ -56,13 +56,16 @@ plot(marginal_effects(mod3.5),points=T) #does it fit the data?
 marginal_effects(mod3)
 conditional_effects(mod3.5)
 
-loo(mod3, moment_match = T)
-loo(mod3.5, moment_match = T)
+a <- loo(mod3) 
+loo(mod3.5)
+loo_compare(mod3, mod3.5)
+k3 <- kfold(mod3, K=10)
+k3.5 <- kfold(mod3.5, K=10)
 loo_compare(mod3, mod3.5)
 
-m3 <- add_criterion(mod3, "waic")
-m3.5 <- add_criterion(mod3.5, "waic")
-loo_compare(mod3, mod3.5, criterion = "waic")
+plot(a)
+
+#Hmmm I think we're back to square one- region/station model is overfit 
 
 ##########################
 #Run NBS model

@@ -1,8 +1,9 @@
 # notes ----
-#Summarize benthic invert mean CPUE to append to snow crab condition datasets
+#Summarize station-level benthic invert mean CPUE to append to snow crab condition datasets
+  #to use as a covariate for modeling 
 
 # Erin Fedewa
-# last updated: 2023/10/13 with 2023 groundfish data 
+# last updated: 2024/3/13 with 2023 groundfish data 
 
 #Note: This script uses a groundfish dataset that is generated via the Snow Crab 
   #ESP indicator development script (see gf_data_pull.R, which queries directly from Racebase)
@@ -20,7 +21,7 @@ benthic <- read_csv("./data/gf_cpue_timeseries.csv")
 benthic %>%
   filter(YEAR > 2018,
     !(SPECIES_CODE %in% c(68560, 68580, 69322, 69323))) %>% #remove commercial crab species 
-  group_by(CRUISE, YEAR, STATION) %>%
+  group_by(CRUISE, YEAR, STATION, LATITUDE_DD_START, LONGITUDE_DD_START) %>%
   summarise(Gersemia_cpue = sum(CPUE_KGKM2[SPECIES_CODE %in% c(41201:41221)], na.rm = T),
             Pennatulacea_cpue = sum(CPUE_KGKM2[SPECIES_CODE %in% c(42000:42999)], na.rm = T),
             Actinaria_cpue = sum(CPUE_KGKM2[SPECIES_CODE %in% c(43000:43999)], na.rm = T),
@@ -42,4 +43,25 @@ benthic %>%
             rename(gis_station = station) -> benthic_cpue
   
 write.csv(benthic_cpue, file = "./output/benthic_cpue.csv")
+
+#load output for figures
+benthic_cpue <- read_csv("./output/benthic_cpue.csv")
+
+#Spatial maps 
+
+#Basemaps
+usa <- raster::getData("GADM", country = c("USA"), level = 1, path = "./data")
+can <- raster::getData("GADM", country = c("CAN"), level = 1, path = "./data")
+
+#total benthic cpue
+benthic_cpue %>% 
+  ggplot() + 
+  geom_polygon(data = usa, aes(x = long, y = lat, group = group))+
+  geom_point(aes(x = longitude_dd_start, y = latitude_dd_start, size=total_benthic_cpue), color= "light blue")+
+  coord_quickmap(xlim = c(-179, -158), ylim = c(53, 66)) +
+  theme_bw() +
+  facet_wrap(~year)
+#missing stations in 2023 due to unfinished NBS grid 
+
+
 

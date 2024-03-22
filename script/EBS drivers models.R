@@ -330,7 +330,7 @@ ce1s_1$sex %>%
 #Simpler model- pulling temp b/c that is essentially a year effect 
 
 mod2_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(temperature, k = 4, by = year) + s(julian, k = 4) +
-                      s(fourth.root.cpue, k=4, by = year)  + (1 | station)) 
+                      s(fourth.root.cpue, k=4, by = year)  + (1 | region/station)) 
 
 set_priors <- c(set_prior("normal(0, 3)", class = "b"), #slope prior
                 set_prior("normal(0, 3)", class = "Intercept"),
@@ -358,7 +358,7 @@ pp_check(mod2, ndraws = 1000) + labs(title = str_glue("Posterior predictive chec
 summary(mod2)
 tidy(mod2)
 bayes_R2(mod2)
-a <- loo(mod2)
+a <- loo(mod2, moment_match = T)
 plot(a)
 
 plot(marginal_effects(mod2),points=T) #does it fit the data?
@@ -386,8 +386,8 @@ ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(mod2))
   #no apparent issues with 1/region ....but do we even need this? replication is at station level
 #what about 1/station....but this is already represented by group-level covariates 
 #was region/station loo error due to priors?
-#1/station-tail effective sample sizes too low
-#1/region - no concerning diagnostics
+#1/station-tail effective sample sizes too low, high pareto k
+#1/region - no concerning diagnostics but this seems wrong!!
 #1/region/station - high r2 but high pareto k values, overdispersion
 
 
@@ -399,7 +399,7 @@ ebs.dat %>%
   add_predicted_draws(mod2, re_formula = NA, category="temperature") %>% #can use add_epred_draws() instead for posterior means
   ggplot(aes(x = temperature, y = Total_FA_Conc_WWT, color = ordered(year), fill = ordered(year))) +
   stat_lineribbon(aes(y = .prediction), .width = c(.95, .80, .50), alpha = 1/4) +
-  geom_point(data = ebs.dat) +
+  geom_point(data = ebs.dat, colour = "darkseagreen4", size = 3) +
   scale_fill_brewer(palette = "Set2") +
   scale_color_brewer(palette = "Dark2")
 #or faceted
