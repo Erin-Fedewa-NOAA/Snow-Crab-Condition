@@ -329,8 +329,10 @@ ce1s_1$sex %>%
 ########################
 #Simpler model- pulling temp b/c that is essentially a year effect 
 
+#mod2 = no random effect structure 
+
 mod2_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(temperature, k = 4, by = year) + s(julian, k = 4) +
-                      s(fourth.root.cpue, k=4, by = year)  + (1 | region/station)) 
+                      s(fourth.root.cpue, k=4, by = year))  
 
 set_priors <- c(set_prior("normal(0, 3)", class = "b"), #slope prior
                 set_prior("normal(0, 3)", class = "Intercept"),
@@ -346,15 +348,51 @@ mod2 <- brm(mod2_formula,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
 
+
 #Save output
 saveRDS(mod2, file = "./output/mod2.rds")
 mod2 <- readRDS("./output/mod2.rds")
+##############################
+#mod3 = 1/region
+  
+  mod3_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(temperature, k = 4, by = year) + s(julian, k = 4) +
+                        s(fourth.root.cpue, k=4, by = year) + (1 | region))  
 
+set_priors <- c(set_prior("normal(0, 3)", class = "b"), #slope prior
+                set_prior("normal(0, 3)", class = "Intercept"),
+                set_prior("student_t(3, 0, 2.5)", class = "sd"),
+                prior(cauchy(0, 10), class = sigma, class = "sigma"))
+
+model_priors <- c(set_prior("normal(0,1.5)","b"), set_prior("normal(0,1.5)","Intercept"))
+
+mod3 <- brm(mod3_formula,
+            data = ebs.dat,
+            family = gaussian,
+            cores = 4, chains = 4, iter = 2500,
+            save_pars = save_pars(all = TRUE),
+            control = list(adapt_delta = 0.999, max_treedepth = 14))
+
+
+#Save output
+saveRDS(mod3, file = "./output/mod3.rds")
+mod3 <- readRDS("./output/mod3.rds")
+
+pp_check(mod3)
+bayes_R2(mod3)
+a <- loo(mod3, moment_match = T)
+plot(a)
+loo(mod2, mod3)
+  
+#Looks like we definately want a random effect - now test model varaitons of random effects? 
+  
+  
+  
+  
 #MCMC convergence diagnostics 
 check_hmc_diagnostics(mod2$fit)
 neff_lowest(mod1$fit)
 rhat_highest(mod1$fit)
-pp_check(mod2, ndraws = 1000) + labs(title = str_glue("Posterior predictive checks for mod2"))
+pp_check(mod2) + labs(title = str_glue("Posterior predictive checks for mod2"))
 summary(mod2)
 tidy(mod2)
 bayes_R2(mod2)

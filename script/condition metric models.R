@@ -114,7 +114,7 @@ new.dat %>%
   theme_bw() +
   theme(panel.grid = element_blank()) +
   theme_bw() + 
-  labs(x= "% DWT in Hepatopancreas", y = "Total FA per DWT (mg FA/g WWT)") +
+  labs(x= "% DWT in Hepatopancreas", y = "Total FA per DWT (mg FA/g DWT)") +
   theme(legend.title=element_blank()) +
   scale_colour_manual(values=cbPalette) +
   coord_cartesian(xlim = range(new.dat$Perc_DWT),
