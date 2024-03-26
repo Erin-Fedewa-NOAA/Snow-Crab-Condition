@@ -158,26 +158,27 @@ loo_compare(loo_normal_trunc, loo_skew_trunc, loo_normal_log_jacobian, loo_skew_
 #Overall summary: The more flexible skew normal model continues to fit the data best, and 
   #visually, a truncated skew normal model appears like the best choice
 #HOWEVER, brms cannot yet compute posterior draws for truncated skew normal models yet
-#Results from models with more covariates and truncated gaussian distribution appear robust to the 
-  #two distributions, and ppc plots don't look terrible, so let's go with gaussian 
+#Results from models with more covariates and truncated Gaussian distribution appear robust to the 
+  #two distributions, and ppc plots don't look terrible, so let's go with Gaussian 
 #############################################
 #EBS Models: 
+#Model runs not shown here, but group-level effects structure was explored. Due to the high number of stations\
+  #containing only 1 crab, 1|station and nested 1|region/station models had convergence issues. 
+#We'll go with 1|region to at least attempt to account for the repeat sampling design
 
-#Most complex should be - or test density/temp/invert all seperate? 
-mod1_formula <-  bf(Perc_DWT ~ sex + s(cw, k = 4) + s(temperature, k = 4) + s(julian, k = 4)
-                      s(fourth.root.cpue, k=4) + s(fourth.root.invert, k=4) + (1 | region/station)) 
+#####
+#MODEL 1 BASE MODEL: default priors, truncated Gaussian, 
+    #Covariates: crab size/julian day/random effect (all nuisance sampling design covariates)
 
-#Model 1: %dWT ~ sex, cw, temperature, cpue, benthic invert,  
-
-mod1_formula <-  bf(Perc_DWT ~ sex + cw + s(temperature, k = 4) + 
-                      s(fourth.root.cpue, k=4) + s(fourth.root.invert, k=4) + (1 | year/region)) 
+mod1_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+                      (1 | region))  
 
 mod1 <- brm(mod1_formula,
-               data = ebs.dat,
-                family = gaussian,
-               cores = 4, chains = 4, iter = 2500,
-               save_pars = save_pars(all = TRUE),
-               control = list(adapt_delta = 0.999, max_treedepth = 14))
+            data = ebs.dat,
+            family = gaussian,
+            cores = 4, chains = 4, iter = 2500, warmup = 1000,
+            save_pars = save_pars(all = TRUE),
+            control = list(adapt_delta = 0.999, max_treedepth = 14))
 
 #Save output
 saveRDS(mod1, file = "./output/mod1.rds")
@@ -186,165 +187,31 @@ mod1 <- readRDS("./output/mod1.rds")
 #MCMC convergence diagnostics 
 check_hmc_diagnostics(mod1$fit)
 neff_lowest(mod1$fit)
-rhat_highest(mod1$fit)
-summary(mod1)
-bayes_R2(mod1)
-
-pp_check(mod1)
+rhat_highest(mod1$fit) #Potential scale reduction: All rhats < 1.1
 
 #Diagnostic Plots
 plot(mod1, ask = FALSE)
 plot(conditional_smooths(mod1), ask = FALSE)
 mcmc_plot(mod1, type = "areas", prob = 0.95)
-mcmc_rhat(rhat(mod1)) #Potential scale reduction: All rhats < 1.1
-mcmc_acf(mod1, pars = c("b_Intercept", "bs_ssize_1", "bs_sjulian_1"), lags = 10) #Autocorrelation of selected parameters
 mcmc_neff(neff_ratio(mod1)) #Effective sample size: All ratios > 0.1
+pp_check(mod1)
 
-##########################
+summary(mod1) #credible intervals for spline variance parameters (sds) don't include 0, let's keep smooths
+bayes_R2(mod1) #R2 = 0.2
+loo(mod1) -> a
+plot(a)
 
-##CPUE condition effect plot
-## 95% CI
-ce1s_1 <- conditional_effects(mod1 , effect = "fourth.root.cpue", re_formula = NA,
-                              probs = c(0.025, 0.975))
-## 90% CI
-ce1s_2 <- conditional_effects(mod1 , effect = "fourth.root.cpue", re_formula = NA,
-                              probs = c(0.05, 0.95))
-## 80% CI
-ce1s_3 <- conditional_effects(mod1 , effect = "fourth.root.cpue", re_formula = NA,
-                              probs = c(0.1, 0.9))
-dat_ce <- ce1s_1$fourth.root.cpue
-dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
-dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
-dat_ce[["upper_90"]] <- ce1s_2$fourth.root.cpue[["upper__"]]
-dat_ce[["lower_90"]] <- ce1s_2$fourth.root.cpue[["lower__"]]
-dat_ce[["upper_80"]] <- ce1s_3$fourth.root.cpue[["upper__"]]
-dat_ce[["lower_80"]] <- ce1s_3$fourth.root.cpue[["lower__"]]
+#####
+#MODEL 2 BASE MODEL + INVERT: default priors, truncated Gaussian, 
+#Covariates: crab size/julian day/random effect + invert*year interaction
 
-ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
-  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "#F7FBFF") +
-  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
-  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
-  geom_line(size = 1, color = "black") +
-  geom_point(data = ebs.dat, aes(x = fourth.root.cpue, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
-  labs(x = "CPUE", y = "") +
-  theme_bw() 
-
-##Temperature 
-## 95% CI
-ce1s_1 <- conditional_effects(mod1 , effect = "temperature", re_formula = NA,
-                              probs = c(0.025, 0.975))
-## 90% CI
-ce1s_2 <- conditional_effects(mod1 , effect = "temperature", re_formula = NA,
-                              probs = c(0.05, 0.95))
-## 80% CI
-ce1s_3 <- conditional_effects(mod1 , effect = "temperature", re_formula = NA,
-                              probs = c(0.1, 0.9))
-dat_ce <- ce1s_1$temperature
-dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
-dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
-dat_ce[["upper_90"]] <- ce1s_2$temperature[["upper__"]]
-dat_ce[["lower_90"]] <- ce1s_2$temperature[["lower__"]]
-dat_ce[["upper_80"]] <- ce1s_3$temperature[["upper__"]]
-dat_ce[["lower_80"]] <- ce1s_3$temperature[["lower__"]]
-
-ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
-  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "#F7FBFF") +
-  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
-  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
-  geom_line(size = 1, color = "black") +
-  geom_point(data = ebs.dat, aes(x = temperature, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
-  labs(x = "Temperature (C)", y = "") +
-  theme_bw() 
-
-##Benthic Inverts 
-## 95% CI
-ce1s_1 <- conditional_effects(mod1 , effect = "fourth.root.invert", re_formula = NA,
-                              probs = c(0.025, 0.975))
-## 90% CI
-ce1s_2 <- conditional_effects(mod1 , effect = "fourth.root.invert", re_formula = NA,
-                              probs = c(0.05, 0.95))
-## 80% CI
-ce1s_3 <- conditional_effects(mod1 , effect = "fourth.root.invert", re_formula = NA,
-                              probs = c(0.1, 0.9))
-dat_ce <- ce1s_1$fourth.root.invert
-dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
-dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
-dat_ce[["upper_90"]] <- ce1s_2$fourth.root.invert[["upper__"]]
-dat_ce[["lower_90"]] <- ce1s_2$fourth.root.invert[["lower__"]]
-dat_ce[["upper_80"]] <- ce1s_3$fourth.root.invert[["upper__"]]
-dat_ce[["lower_80"]] <- ce1s_3$fourth.root.invert[["lower__"]]
-
-ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
-  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "#F7FBFF") +
-  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
-  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
-  geom_line(size = 1, color = "black") +
-  geom_point(data = ebs.dat, aes(x = fourth.root.invert, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
-  labs(x = "Benthic Invertebrate Density", y = "") +
-  theme_bw() 
-
-#Size effect plot 
-#Need to save settings from conditional effects as an object to plot in ggplot
-## 95% CI
-ce1s_1 <- conditional_effects(mod1 , effect = "cw", re_formula = NA,
-                              probs = c(0.025, 0.975))
-## 90% CI
-ce1s_2 <- conditional_effects(mod1 , effect = "cw", re_formula = NA,
-                              probs = c(0.05, 0.95))
-## 80% CI
-ce1s_3 <- conditional_effects(mod1 , effect = "cw", re_formula = NA,
-                              probs = c(0.1, 0.9))
-
-dat_ce <- ce1s_1$cw
-dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
-dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
-dat_ce[["upper_90"]] <- ce1s_2$cw[["upper__"]]
-dat_ce[["lower_90"]] <- ce1s_2$cw[["lower__"]]
-dat_ce[["upper_80"]] <- ce1s_3$cw[["upper__"]]
-dat_ce[["lower_80"]] <- ce1s_3$cw[["lower__"]]
-
-ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
-  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "#F7FBFF") +
-  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
-  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
-  geom_line(size = 1, color = "black") +
-  geom_point(data = ebs.dat, aes(x = cw, y = Perc_DWT), colour = "grey80", shape= 73, size = 2) + #raw data
-  labs(x = "Carapace Width (mm)", y = "") +
-  theme_bw() 
-
-#Sex effect plot 
-#Need to save settings from conditional effects as an object to plot in ggplot
-ce1s_1 <- conditional_effects(mod1, effect = "sex", re_formula = NA,
-                              probs = c(0.025, 0.975)) 
-ce1s_1$sex %>%
-  dplyr::select(sex, estimate__, lower__, upper__) %>%
-  mutate(sex = case_when(sex == 1 ~ "Male",
-                         sex == 2 ~ "Female")) %>%
-  ggplot(aes(factor(sex, levels = c("Male", "Female")), estimate__)) +
-  geom_point(size=3) +
-  geom_errorbar(aes(ymin=lower__, ymax=upper__), width=0.3, size=0.5) +
-  labs(y="% Hepatopancreas Dry Weight", x="") +
-  theme_bw() 
-
-########################
-#Simpler model- pulling temp b/c that is essentially a year effect 
-
-#mod2 = no random effect structure 
-
-mod2_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(temperature, k = 4, by = year) + s(julian, k = 4) +
-                      s(fourth.root.cpue, k=4, by = year))  
-
-set_priors <- c(set_prior("normal(0, 3)", class = "b"), #slope prior
-                set_prior("normal(0, 3)", class = "Intercept"),
-                set_prior("student_t(3, 0, 2.5)", class = "sd"),
-                prior(cauchy(0, 10), class = sigma, class = "sigma"))
-
-model_priors <- c(set_prior("normal(0,1.5)","b"), set_prior("normal(0,1.5)","Intercept"))
+mod2_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+                      s(fourth.root.invert, k=4, by = year) + (1 | region))  
 
 mod2 <- brm(mod2_formula,
             data = ebs.dat,
             family = gaussian,
-            cores = 4, chains = 4, iter = 2500,
+            cores = 4, chains = 4, iter = 2500, warmup = 1000,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
 
@@ -352,23 +219,40 @@ mod2 <- brm(mod2_formula,
 #Save output
 saveRDS(mod2, file = "./output/mod2.rds")
 mod2 <- readRDS("./output/mod2.rds")
-##############################
-#mod3 = 1/region
-  
-  mod3_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(temperature, k = 4, by = year) + s(julian, k = 4) +
-                        s(fourth.root.cpue, k=4, by = year) + (1 | region))  
 
-set_priors <- c(set_prior("normal(0, 3)", class = "b"), #slope prior
-                set_prior("normal(0, 3)", class = "Intercept"),
-                set_prior("student_t(3, 0, 2.5)", class = "sd"),
-                prior(cauchy(0, 10), class = sigma, class = "sigma"))
+#MCMC convergence diagnostics 
+check_hmc_diagnostics(mod2$fit)
+neff_lowest(mod2$fit)
+rhat_highest(mod2$fit) #Potential scale reduction: All rhats < 1.1
 
-model_priors <- c(set_prior("normal(0,1.5)","b"), set_prior("normal(0,1.5)","Intercept"))
+#Diagnostic Plots
+plot(mod2, ask = FALSE)
+plot(conditional_smooths(mod2), ask = FALSE)
+mcmc_plot(mod2, type = "areas", prob = 0.95)
+mcmc_neff(neff_ratio(mod2)) #Effective sample size: All ratios > 0.1
+pp_check(mod2)
+
+summary(mod2) 
+bayes_R2(mod2) #R2 = 0.29
+loo(mod2) -> b
+plot(b)
+
+# model comparison
+loo(mod1, mod2, moment_match = TRUE) 
+#Looks like benthic invert density increases predictive skill 
+
+#####
+#MODEL 3 BASE MODEL + INVERT + CRAB: default priors, truncated Gaussian, 
+#Covariates: crab size/julian day/random effect + invert*year + crab*year interaction
+
+mod3_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+                      s(fourth.root.invert, k=4, by = year) + s(fourth.root.cpue, k=4, by = year) +
+                      (1 | region))  
 
 mod3 <- brm(mod3_formula,
             data = ebs.dat,
             family = gaussian,
-            cores = 4, chains = 4, iter = 2500,
+            cores = 4, chains = 4, iter = 2500, warmup = 1000,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
 
@@ -377,32 +261,71 @@ mod3 <- brm(mod3_formula,
 saveRDS(mod3, file = "./output/mod3.rds")
 mod3 <- readRDS("./output/mod3.rds")
 
-pp_check(mod3)
-bayes_R2(mod3)
-a <- loo(mod3, moment_match = T)
-plot(a)
-loo(mod2, mod3)
-  
-#Looks like we definately want a random effect - now test model varaitons of random effects? 
-  
-  
-  
-  
 #MCMC convergence diagnostics 
-check_hmc_diagnostics(mod2$fit)
-neff_lowest(mod1$fit)
-rhat_highest(mod1$fit)
-pp_check(mod2) + labs(title = str_glue("Posterior predictive checks for mod2"))
-summary(mod2)
-tidy(mod2)
-bayes_R2(mod2)
-a <- loo(mod2, moment_match = T)
-plot(a)
+check_hmc_diagnostics(mod3$fit)
+neff_lowest(mod3$fit)
+rhat_highest(mod3$fit) #Potential scale reduction: All rhats < 1.1
 
-plot(marginal_effects(mod2),points=T) #does it fit the data?
-marginal_effects(mod2)
-conditional_effects(mod2)
-#condition better at high density - better habitat? 
+#Diagnostic Plots
+plot(mod3, ask = FALSE)
+plot(conditional_smooths(mod3), ask = FALSE)
+mcmc_plot(mod3, type = "areas", prob = 0.95)
+mcmc_neff(neff_ratio(mod3)) #Effective sample size: All ratios > 0.1
+pp_check(mod3)
+
+summary(mod3) 
+bayes_R2(mod3) #R2 = 0.45
+loo(mod3) -> c
+plot(c)
+
+# model comparison
+loo(mod1, mod2, mod3, moment_match = TRUE) 
+#Snow crab CPUE also increases predictive capacity
+
+#####
+#MODEL 4 BASE MODEL + INVERT + CRAB + TEMP: default priors, truncated Gaussian, 
+#Covariates: crab size/julian day/random effect + invert*year + crab*year + temp*year interaction 
+
+mod4_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+                      s(fourth.root.invert, k=4, by = year) + s(fourth.root.cpue, k=4, by = year) +
+                      s(temperature, k=4, by = year) + (1 | region))  
+
+mod4 <- brm(mod4_formula,
+            data = ebs.dat,
+            family = gaussian,
+            cores = 4, chains = 4, iter = 2500, warmup = 1000,
+            save_pars = save_pars(all = TRUE),
+            control = list(adapt_delta = 0.999, max_treedepth = 14))
+
+#Save output
+saveRDS(mod4, file = "./output/mod4.rds")
+mod4 <- readRDS("./output/mod4.rds")
+
+#MCMC convergence diagnostics 
+check_hmc_diagnostics(mod4$fit)
+neff_lowest(mod4$fit)
+rhat_highest(mod4$fit) #Potential scale reduction: All rhats < 1.1
+
+#Diagnostic Plots
+plot(mod4, ask = FALSE)
+plot(conditional_smooths(mod4), ask = FALSE)
+mcmc_plot(mod4, type = "areas", prob = 0.95)
+mcmc_neff(neff_ratio(mod4)) #Effective sample size: All ratios > 0.1
+pp_check(mod4)
+
+summary(mod4) 
+bayes_R2(mod4) #R2 = 0.2
+loo(mod4) -> d
+plot(d)
+
+# model comparison
+loo(mod1, mod2, mod3, mod4, moment_match = TRUE)
+  
+###Mess below this###############
+
+#Need to set seed and up iteration for final run
+#any other model diagnostics/comparisons
+#Extract draws and make plots 
 
 pit <- function(y, yrep) {
   n_draws <- nrow(yrep)
@@ -419,15 +342,6 @@ pit <- function(y, yrep) {
 
 ppc_pit_ecdf(pit=pit(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(mod2))) #overdispersion
 ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(mod2))
-
-#So region/station model is too flexible with overdispersion - only one obsv per region/station
-  #no apparent issues with 1/region ....but do we even need this? replication is at station level
-#what about 1/station....but this is already represented by group-level covariates 
-#was region/station loo error due to priors?
-#1/station-tail effective sample sizes too low, high pareto k
-#1/region - no concerning diagnostics but this seems wrong!!
-#1/region/station - high r2 but high pareto k values, overdispersion
-
 
 
 #try this - posterior predictions via tidybayes
@@ -485,97 +399,10 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   labs(x = "CPUE", y = "") +
   theme_bw() 
 
-#################################
+#Add a, b and c to figs
+patchwork + 
+  plot_annotation(tag_levels = 'A') & 
+  theme(plot.tag = element_text(size = 8))
 
-mod3_formula <-  bf(Perc_DWT ~ sex + year + 
-                        year/fourth.root.cpue + (1 | region)) 
 
-mod3 <- brm(mod3_formula,
-            data = ebs.dat,
-            family = gaussian,
-            cores = 4, chains = 4, iter = 2500,
-            save_pars = save_pars(all = TRUE),
-            control = list(adapt_delta = 0.999, max_treedepth = 14))
 
-#Save output
-saveRDS(mod3, file = "./output/mod3.rds")
-mod3 <- readRDS("./output/mod3.rds")
-
-summary(mod3)
-bayes_R2(mod3)
-
-#Diagnostic Plots
-plot(mod3, ask = FALSE)
-plot(conditional_smooths(mod3))
-conditional_effects(mod3)
-
-#pre-collapse, low condition regardless of density, 
-#different effect of density pre-collapse than post 
-
-##############################################
-
-mod4_formula <-  bf(Perc_DWT ~ sex +  
-                      s(temperature, k=4) + (1 | region)) 
-
-mod4 <- brm(mod4_formula,
-            data = ebs.dat,
-            family = gaussian,
-            cores = 4, chains = 4, iter = 2500,
-            save_pars = save_pars(all = TRUE),
-            control = list(adapt_delta = 0.999, max_treedepth = 14))
-
-#Save output
-saveRDS(mod4, file = "./output/mod4.rds")
-mod4 <- readRDS("./output/mod4.rds")
-summary(mod4)
-conditional_effects(mod4)
-
-#temperature is an annual effect - 
-#always keep sex in as nuisance variable, region for spatial correlation
-
-#############################################
-
-mod5_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0)  ~ cw + s(temperature, k=4)  + (1 | region)) 
-
-mod5 <- brm(mod5_formula,
-            data = ebs.dat,
-            family = gaussian(),
-            cores = 4, chains = 4, iter = 2500,
-            save_pars = save_pars(all = TRUE),
-            control = list(adapt_delta = 0.999, max_treedepth = 14))
-
-#Save output
-saveRDS(mod5, file = "./output/mod5.rds")
-mod5 <- readRDS("./output/mod5.rds")
-summary(mod5)
-conditional_effects(mod5)
-pp_check(mod5)
-plot(conditional_smooths(mod5), ask = FALSE)
-
-check_hmc_diagnostics(mod5$fit)
-neff_lowest(mod1$fit)
-rhat_highest(mod1$fit)
-summary(mod5)
-bayes_R2(mod5)
-
-y_obs <- ebs.dat$Total_FA_Conc_WWT #Observed values
-
-preds <- posterior_epred(mod5) #posterior draws
-auc <- apply(preds, 1, function(x) {
-  roc <- roc(y_obs, x, quiet = TRUE)
-  auc(roc)
-})
-hist(auc)
-
-ce1s_1 <- conditional_effects(mod5, effect = "temperature", re_formula = NA,
-                              probs = c(0.025, 0.975)) 
-
-#Not estimating temperature effect in first model- low condition with different
-  #response to density. now to just look at model with temperature b/c
-#Cant distinguish between density and temp in same model 
-
-#def need to truncate if using gaussian
-#skew pp check looks better, but still neg values (running with trunctation now)
-#next: run inverse gausian 
-
-#try s(fourth.root.cpue, k=4, by=year)

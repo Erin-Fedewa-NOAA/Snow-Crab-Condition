@@ -61,16 +61,16 @@ condition_master %>%
   theme_bw() +
   labs(x= "", y = "Sample size")
 
-# Sample sizes by BSIERP region 
+# Sample sizes by region 
 condition_master %>%
-  group_by(year,bsierp_region, lme) %>%
+  group_by(year,sample_region, lme) %>%
   count() %>%
   filter(lme != "NA") %>% #one crab collected outside the sampling design
   ggplot() +
-  geom_bar(aes(x=as.factor(bsierp_region), y= n), stat='identity') +
+  geom_bar(aes(x=as.factor(sample_region), y= n), stat='identity') +
   facet_grid(lme~year) +
   theme_bw() +
-  labs(x= "BSIERP Region", y = "Sample size")
+  labs(x= "Sampling Region", y = "Sample size")
 ggsave("./figures/data exploration/n_bsierpregion.png", dpi=300)
 
 #Sample sizes by maturity
