@@ -314,18 +314,20 @@ mcmc_neff(neff_ratio(mod4)) #Effective sample size: All ratios > 0.1
 pp_check(mod4)
 
 summary(mod4) 
-bayes_R2(mod4) #R2 = 0.2
+bayes_R2(mod4) #R2 = 0.49
 loo(mod4) -> d
 plot(d)
 
 # model comparison
 loo(mod1, mod2, mod3, mod4, moment_match = TRUE)
+#So seems that full model has highest predictive capacity 
   
 ###Mess below this###############
 
+#Wed: 
 #Need to set seed and up iteration for final run
 #any other model diagnostics/comparisons
-#Extract draws and make plots 
+#Extract draws and make plots - how to interpret interactions vrs overall effect?
 
 pit <- function(y, yrep) {
   n_draws <- nrow(yrep)
