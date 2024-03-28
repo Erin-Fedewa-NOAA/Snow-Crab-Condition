@@ -72,7 +72,7 @@ new.dat %>%
   scale_colour_manual(values=cbPalette)
 #facet_wrap(~lme)
 
-#########
+############################
 #Bayesian regression model (FA ~ %DWT)
 condition_1 <- brm(data = new.dat,
             family = student, #Student's t distribution- more robust to outliers
@@ -121,8 +121,7 @@ new.dat %>%
                   ylim = c(0,775)) 
 ggsave("./figures/Fig2.png")
  
- ######
-
+############################
 # Linear regression (FA ~ %DWT) 
 mod1 <- lm(Total_FA_Conc_DWT~Perc_DWT, data=new.dat) 
 summary(mod1)
@@ -168,7 +167,7 @@ new.dat %>%
   geom_point() +
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) +
-  labs(x= "Crab weight/size ratio", y = "Total FA per DWT (mg FA/g WWT)")
+  labs(x= "Crab weight/size ratio", y = "Total FA per DWT (mg FA/g DWT)")
 
 #% LM: weight/size ratio vrs total FA concentration - no 2019
 new.dat %>%
