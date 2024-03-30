@@ -95,7 +95,8 @@ model_normal_log <- brm(log(Total_FA_Conc_WWT) ~ year, family = gaussian(link="i
 summary(model_normal_log)
 
 # Student t distribution (more robust to outliers)- truncating response at 0 
-model_student_trunc <- brm(Total_FA_Conc_WWT  ~ year, family = student, data = ebs.dat)
+model_student_trunc <- brm(Total_FA_Conc_WWT | trunc(lb = 0)  ~ year, family = student(), data = ebs.dat)
+#Compiling issue that I can't sort out! 
 
 # fitting a test brms model with a skew normal likelihood (more flexible distribution)- truncating response
 model_skew_trunc <- brm(Total_FA_Conc_WWT | trunc(lb = 0)  ~ year, family = skew_normal(), data = ebs.dat)
@@ -171,9 +172,10 @@ loo_compare(loo_normal_trunc, loo_skew_trunc, loo_normal_log_jacobian, loo_skew_
   #two distributions, and ppc plots don't look terrible, so let's go with Gaussian 
 #############################################
 #EBS Models: 
-#Model runs not shown here, but group-level effects structure was explored. Due to the high number of stations\
+#Model runs not shown here, but group-level effects structure was explored. Due to the high number of stations
   #containing only 1 crab, 1|station and nested 1|region/station models had convergence issues. 
-#We'll go with 1|year/region to at least attempt to account for the repeat sampling design
+#We'll go with 1|region to at least attempt to account for the repeat sampling design, and note that
+  #we're not using 1|year/region b/c this confounds covariate effects with strong annual signals like temp! 
 
 ####################################
 #MODEL 1 BASE MODEL: default, truncated Gaussian, 
@@ -181,7 +183,7 @@ loo_compare(loo_normal_trunc, loo_skew_trunc, loo_normal_log_jacobian, loo_skew_
     #Note: weakly informative priors were tested, but don't improve pp checks
 
 mod1_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
-                      (1 | year/region)) 
+                      (1 | region)) 
 
 ## Show default priors
 get_prior(mod1_formula, ebs.dat)
@@ -189,9 +191,8 @@ get_prior(mod1_formula, ebs.dat)
 mod1 <- brm(mod1_formula,
             data = ebs.dat,
             family = gaussian,
-            #prior = c(prior(student_t(3, 1, 5), class = Intercept),
-                      #prior(student_t(3, 1, 5), class = b),
-                      #prior(cauchy(0, 1),  class = sigma)),
+            #prior = c(prior(student_t(3, 96, 59), class = Intercept, lb = 0),
+              #prior(cauchy(0, 20),  class = sigma, lb = 0)),
                         cores = 4, chains = 4, iter = 2500, warmup = 1000,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
@@ -213,16 +214,15 @@ mcmc_neff(neff_ratio(mod1)) #Effective sample size: All ratios > 0.1
 pp_check(mod1)
 
 summary(mod1) #credible intervals for spline variance parameters (sds) don't include 0, let's keep smooths
-bayes_R2(mod1) #R2 = 0.52
-loo(mod1) -> a
-plot(a)
+bayes_R2(mod1) #R2 = 0.20
+loo(mod1) -> plot(a)
 
 ###########################
 #MODEL 2 BASE MODEL + INVERT: default priors, truncated Gaussian, 
-#Covariates: crab size/julian day/random effect + invert*year interaction
+#Covariates: crab size/julian day/random effect + invert main effect 
 
 mod2_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
-                      s(fourth.root.invert, k=4, by = year) + (1 | year/region))  
+                      s(fourth.root.invert, k = 4) + (1 | region))  
 
 mod2 <- brm(mod2_formula,
             data = ebs.dat,
@@ -249,28 +249,32 @@ mcmc_neff(neff_ratio(mod2)) #Effective sample size: All ratios > 0.1
 pp_check(mod2)
 
 summary(mod2) 
-bayes_R2(mod2) #R2 = 0.53
+bayes_R2(mod2) #R2 = 0.22
 loo(mod2) -> b
 plot(b)
 
 # model comparison
 loo(mod1, mod2, moment_match = TRUE) 
-#Really not much difference, but mod 1 slightly better - we'll drop benthic invert  
+#Interesting...at medium to high levels of benthic prey, we see declines in 
+  #energetic condition. Maybe more a proxy for competition than prey? 
+#With a SE < 5, benthic inverts really doesn't add much to predictive capacity. 
+  #We'll drop for parsimony until we can better resolve a benthic prey index
 
 #######################
-#MODEL 3 BASE MODEL + CRAB: default priors, truncated Gaussian, 
-#Covariates: crab size/julian day/random effect + crab*year interaction
+#MODEL 3 BASE MODEL + CRAB DENSITY: default priors, truncated Gaussian, 
+#Covariates: crab size/julian day/random effect + crab density fixed effect
 
 mod3_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
-                       s(fourth.root.cpue, k=4, by = year) + (1 | year/region))  
+                       s(fourth.root.cpue, k=4) + (1 | region))  
 
 mod3 <- brm(mod3_formula,
             data = ebs.dat,
             family = gaussian,
+            prior = c(prior(student_t(3, 96, 59), class = Intercept, lb = 0),
+            prior(cauchy(0, 20),  class = sigma, lb = 0)),
             cores = 4, chains = 4, iter = 2500, warmup = 1000,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
-
 
 #Save output
 saveRDS(mod3, file = "./output/mod3.rds")
@@ -287,23 +291,24 @@ plot(conditional_smooths(mod3), ask = FALSE)
 mcmc_plot(mod3, type = "areas", prob = 0.95)
 mcmc_neff(neff_ratio(mod3)) #Effective sample size: All ratios > 0.1
 pp_check(mod3)
+pp_check(mod3, type = "stat_2d")
 
 summary(mod3) 
-bayes_R2(mod3) #R2 = 0.56
+bayes_R2(mod3) #R2 = 0.21
 loo(mod3) -> c
 plot(c)
 
 # model comparison
-loo(mod1, mod2, mod3, moment_match = TRUE) 
-#Stuck here, need to sort out high pareto-k values....
+loo(mod1, mod3, moment_match = TRUE) 
+#Also pretty small difference in models (SE < 5) with an unclear
+  #effect of density 
 
 ################################
-#MODEL 4 BASE MODEL + CRAB + TEMP: default priors, truncated Gaussian, 
-#Covariates: crab size/julian day/random effect + crab*year + temp*year interaction 
+#MODEL 4 BASE MODEL + TEMP: default priors, truncated Gaussian, 
+#Covariates: crab size/julian day/random effect + temperature fixed effect 
 
 mod4_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
-                       s(fourth.root.cpue, k=4, by = year) +
-                      s(temperature, k=4, by = year) + (1 | year/region))  
+                       s(temperature, k=4) + (1 | region))  
 
 mod4 <- brm(mod4_formula,
             data = ebs.dat,
@@ -329,20 +334,21 @@ mcmc_neff(neff_ratio(mod4)) #Effective sample size: All ratios > 0.1
 pp_check(mod4)
 
 summary(mod4) 
-bayes_R2(mod4) #R2 = 0.58
+bayes_R2(mod4) #R2 = 0.24
 loo(mod4) -> d
 plot(d)
 
 # model comparison
-loo(mod1, mod2, mod3, mod4, moment_match = TRUE)
-#So seems that full model has highest predictive capacity 
+loo(mod1, mod3, mod4, moment_match = TRUE)
+#Temperature model has highest predictive capacity 
 
 ####################################
-#Testing, now let's try final model without interactions
+#MODEL 5 BASE MODEL + TEMP + DENSITY: default priors, truncated Gaussian, 
+#Covariates: crab size/julian day/random effect + temperature and density fixed effect 
 
 mod5_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
-                       s(fourth.root.cpue, k=4) +
-                      s(temperature, k=4) + (1 | year/region))  
+                      s(temperature, k=4) + s(fourth.root.cpue, k=4) +
+                      (1 | region))  
 
 mod5 <- brm(mod5_formula,
             data = ebs.dat,
@@ -351,12 +357,80 @@ mod5 <- brm(mod5_formula,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
 
+#Save output
 saveRDS(mod5, file = "./output/mod5.rds")
 mod5 <- readRDS("./output/mod5.rds")
 
+#MCMC convergence diagnostics 
+check_hmc_diagnostics(mod5$fit)
+neff_lowest(mod5$fit)
+rhat_highest(mod5$fit) #Potential scale reduction: All rhats < 1.1
+
+#Diagnostic Plots
+plot(mod5, ask = FALSE)
+plot(conditional_smooths(mod5), ask = FALSE)
+mcmc_plot(mod5, type = "areas", prob = 0.95)
+mcmc_neff(neff_ratio(mod5)) #Effective sample size: All ratios > 0.1
 pp_check(mod5)
-bayes_R2(mod5)
-loo(mod4, mod5, moment_match = TRUE)
+
+summary(mod5) 
+bayes_R2(mod5) #R2 = 0.24
+loo(mod5) -> d
+plot(d)
+
+# model comparison
+loo(mod1, mod3, mod4, mod5, moment_match = TRUE)
+#So seems that full model has highest predictive capacity 
+
+####################################
+#MODEL 6 BASE MODEL + TEMP * DENSITY: default priors, truncated Gaussian, 
+#Covariates: crab size/julian day/random effect + temperature*density interaction 
+
+mod6_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+                    s(fourth.root.cpue, temperature, k=4) + (1 | region))  
+
+mod6 <- brm(mod6_formula,
+            data = ebs.dat,
+            family = gaussian,
+            cores = 4, chains = 4, iter = 2500, warmup = 1000,
+            save_pars = save_pars(all = TRUE),
+            control = list(adapt_delta = 0.999, max_treedepth = 14))
+
+#Save output
+saveRDS(mod6, file = "./output/mod6.rds")
+mod6 <- readRDS("./output/mod6.rds")
+
+#MCMC convergence diagnostics 
+check_hmc_diagnostics(mod6$fit)
+neff_lowest(mod6$fit)
+rhat_highest(mod6$fit) #Potential scale reduction: All rhats < 1.1
+
+#Diagnostic Plots
+plot(mod6, ask = FALSE)
+plot(conditional_smooths(mod6), ask = FALSE)
+mcmc_plot(mod6, type = "areas", prob = 0.95)
+mcmc_neff(neff_ratio(mod6)) #Effective sample size: All ratios > 0.1
+pp_check(mod6)
+
+summary(mod6) 
+bayes_R2(mod6) #R2 = 0.24
+loo(mod6) -> d
+plot(d)
+
+# model comparison
+loo(mod1, mod3, mod4, mod5, mod6, moment_match = TRUE)
+#Hmmm no real advantage of an interaction?
+
+#Follow ups: How do these models compare to ones with year interaction? 
+  #and is this actually a different question? I think so
+#Look into model selection for interactions, brms - such low Rsq with no year effect 
+  #so strong temp effect, but yr still explains much of variation 
+
+
+
+
+
+
 
 ###################################
 #Full Model Comparison
