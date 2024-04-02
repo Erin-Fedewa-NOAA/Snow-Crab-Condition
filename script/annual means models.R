@@ -1,97 +1,140 @@
-#Predict condition for each year/region (EBS/NBS)
+#Predict condition for each year/region (EBS/NBS) after controlling for the effect of size due 
+  #to difference in ontogeny/sex, seasonality due to sampling design of survey, and spatial 
+  #variation within the EBS
 
 ##NOTE: WWT:DWT ratios appear to be affected by difference in sampling methods in 
 #2019. B/c total FA per WWT were not subject to the WWT:DWT discrepancy, it will be 
 #used as response variable in all further analyses. 
 
-mod3_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + year + s(julian, k = 4) + (1 | region/station)) 
+# Author: Erin Fedewa
+# last updated: 3/12/24
 
-#seperate models for EBS and NBS, plot condition effect of year (so accounting for crab
-  #size, julian date and )
+# load ----
+library(tidyverse)
+library(lubridate)
+library(rstan)
+library(brms)
+library(bayesplot)
+library(marginaleffects)
+library(emmeans)
+library(MARSS)
+library(corrplot)
+library(factoextra)
+library(patchwork)
+library(modelr)
+library(broom.mixed)
+library(pROC)
+library(ggthemes)
+library(tidybayes)
+library(RColorBrewer)
+library(knitr)
+library(loo)
+library(sjPlot)
+source("./script/stan_utils.R")
 
-#controlling for the effect of size due to difference in ontogeny/sex, seasonality 
-  #due to sampling design of survey, and spatial variation within the EBS
+condition_master <- read.csv("./data/total_FA_master.csv")
 
-mod3 <- brm(mod3_formula,
-            data = ebs.dat,
-            family = gaussian,
-            cores = 4, chains = 4, iter = 2500,
-            save_pars = save_pars(all = TRUE),
-            control = list(adapt_delta = 0.999, max_treedepth = 14))
+#############################################
+#data wrangling- EBS dataset  
+condition_master %>%
+  mutate(julian=yday(parse_date_time(start_date, "mdy", "US/Alaska"))) %>%  #add julian date 
+  filter(lme == "EBS", 
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"), 
+         maturity != 1,
+         Total_FA_Conc_WWT > 0) %>%
+  mutate(year = as.factor(year),
+         sex = as.factor(sex),
+         region = as.factor(sample_region),
+         station = as.factor(gis_station),
+         temperature = as.numeric(gear_temperature),
+         fourth.root.cpue = as.numeric(cpue^0.25),
+         fourth.root.invert = as.numeric(total_benthic_cpue^0.25),
+         julian = as.numeric(julian)) -> ebs.dat 
 
-saveRDS(mod3, file = "./output/mod3.rds")
-mod3 <- readRDS("./output/mod3.rds")
+#data wrangling- NBS dataset  
+condition_master %>%
+  mutate(julian=yday(parse_date_time(start_date, "mdy", "US/Alaska"))) %>%  #add julian date 
+  filter(lme == "NBS", 
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"), 
+         maturity != 1,
+         Total_FA_Conc_WWT > 0) %>%
+  mutate(year = as.factor(year),
+         sex = as.factor(sex),
+         region = as.factor(sample_region),
+         station = as.factor(gis_station),
+         temperature = as.numeric(gear_temperature),
+         fourth.root.cpue = as.numeric(cpue^0.25),
+         fourth.root.invert = as.numeric(total_benthic_cpue^0.25),
+         julian = as.numeric(julian)) -> nbs.dat
+
+################################################
+#EBS ANNUAL MEANS
+
+ebs_annual_final_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+                      year + (1 | region))  
+
+ebs_annual_final <- brm(ebs_annual_final_formula,
+                     data = ebs.dat,
+                     family = gaussian,
+                     cores = 4, chains = 4, iter = 10000, warmup = 1000,
+                     save_pars = save_pars(all = TRUE), seed = 3,
+                     control = list(adapt_delta = 0.999, max_treedepth = 14))
+
+#Save model output 
+saveRDS(ebs_annual_final, file = "./output/ebs_annual_final.rds")
+ebs_annual_final <- readRDS("./output/ebs_annual_final.rds")
 
 #MCMC convergence diagnostics 
-check_hmc_diagnostics(mod2$fit)
-neff_lowest(mod1$fit)
-rhat_highest(mod1$fit)
-pp_check(mod3, ndraws = 1000) + labs(title = str_glue("Posterior predictive checks for mod2"))
-summary(mod2)
-tidy(mod2)
-bayes_R2(mod3)
+check_hmc_diagnostics(ebs_annual_final$fit)
+neff_lowest(ebs_annual_final$fit)
+rhat_highest(ebs_annual_final$fit)
+summary(ebs_annual_final) #dramatically lower condition in 2019
+bayes_R2(ebs_annual_final) #r2 = .38 - including year in the base model greatly improves fit
+loo(ebs_annual_final, moment_match = T)
 
-plot(marginal_effects(mod3),points=T) #does it fit the data?
-marginal_effects(mod3)
-conditional_effects(mod3)
+#Diagnostic Plots
+plot(ebs_annual_final, ask = FALSE)
+plot(conditional_effects(ebs_annual_final), ask = FALSE)
+mcmc_plot(ebs_annual_final, prob = 0.95)
+mcmc_neff(neff_ratio(ebs_annual_final)) #Effective sample size: All ratios > 0.1
 
-#better model if we drop crab size?
-mod3.5_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ year + s(julian, k = 4) + (1 | region/station)) 
+#Posterior Predictive Check Plots:
+pp_check(ebs_annual_final)
+pp_check(ebs_annual_final, type = "ecdf_overlay")
+pp_check(ebs_annual_final, type = "stat", stat = "mean")
+pp_check(ebs_annual_final, type = "stat", stat = "min")
+pp_check(ebs_annual_final, type = "stat", stat = "max")
 
-mod3.5 <- brm(mod3.5_formula,
-            data = ebs.dat,
-            family = gaussian,
-            cores = 4, chains = 4, iter = 2500,
-            save_pars = save_pars(all = TRUE),
-            control = list(adapt_delta = 0.999, max_treedepth = 14))
+#Pit plots
+pit <- function(y, yrep) {
+  n_draws <- nrow(yrep)
+  pit <- sapply(1:length(y),
+                \(n) {
+                  mean(y[n] > yrep[, n]) +
+                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
+                    # Held, L.: Predictive model assessment for count
+                    # data. Biometrics 65(4), 1254–1261 (2009).)
+                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
+                })
+  pmax(pmin(pit, 1), 0)
+}
 
-saveRDS(mod3.5, file = "./output/mod3.5.rds")
-mod3.5 <- readRDS("./output/mod3.5.rds")
+ppc_pit_ecdf(pit=pit(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_annual_final))) #no overdisersion, looks good
+ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_annual_final))
 
-pp_check(mod3.5, ndraws = 1000) + labs(title = str_glue("Posterior predictive checks for mod2"))
-summary(mod3.5)
-bayes_R2(mod3.5)
+################################
+#Plot conditional effect of year 
 
-plot(marginal_effects(mod3.5),points=T) #does it fit the data?
-marginal_effects(mod3)
-conditional_effects(mod3.5)
-
-a <- loo(mod3) 
-loo(mod3.5)
-loo_compare(mod3, mod3.5)
-k3 <- kfold(mod3, K=10)
-k3.5 <- kfold(mod3.5, K=10)
-loo_compare(mod3, mod3.5)
-
-plot(a)
-
-#Hmmm I think we're back to square one- region/station model is overfit 
-
-##########################
-#Run NBS model
-#now extract annual conditional effect and plot, merge plots 
-
+#Could show as density plots instead of bar plots? See https://cran.r-project.org/web/packages/tidybayes/vignettes/tidy-brms.html
 
 #Conditional Effect for year 
-conditional_effects(hurdle1_tanner, effect = "year")
+conditional_effects(ebs_annual_final, effect = "year")
 
-ce1s_1 <- conditional_effects(hurdle1_tanner, effect = "year", re_formula = NA,
+ce1s_1 <- conditional_effects(ebs_annual_final, effect = "year", re_formula = NA,
                               probs = c(0.025, 0.975)) 
 ce1s_1$year %>%
   dplyr::select(year, estimate__, lower__, upper__) %>%
   mutate(species = "Tanner crab") -> year_tanner
-
-#######################
-#spatial effects - too small of sample sizes to look by region- prob not of interest 
-
-#Conditional Effect for year 
-conditional_effects(hurdle1_snow, effect = "year")
-
-ce1s_1 <- conditional_effects(hurdle1_snow, effect = "year", re_formula = NA,
-                              probs = c(0.025, 0.975)) 
-ce1s_1$year %>%
-  dplyr::select(year, estimate__, lower__, upper__) %>%
-  mutate(species = "Snow crab") -> year_snow
 
 #Average marginal effect of year 
 years_ame <- hurdle1_snow %>% 
@@ -109,66 +152,73 @@ ggplot(years_ame,aes(x = .value, fill=year)) +
        y = "Density") +
   theme_bw()
 
-#Marginal effects: effect of year in the hurdling process 
 
-#Combine hu_year term(s) with hurdle intercept and transform
-hurdle_intercept <- tidy(hurdle1_snow) %>% 
-  filter(term == "hu_(Intercept)") %>%  
-  pull(estimate)
+##########################
+#Run NBS model
 
-hurdle_lifeexp <- tidy(hurdle1_snow) %>%  
-  filter(term == "hu_year2017") %>%  
-  pull(estimate)
+nbs_annual_final_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+                                  year + (1 | region))  
 
-plogis(hurdle_intercept + hurdle_lifeexp) - plogis(hurdle_intercept)
-#The probability of seeing 0% prevalence in 2017 decreased by 38% from 2015
+nbs_annual_final <- brm(nbs_annual_final_formula,
+                        data = nbs.dat,
+                        family = gaussian,
+                        cores = 4, chains = 4, iter = 10000, warmup = 1000,
+                        save_pars = save_pars(all = TRUE), seed = 3,
+                        control = list(adapt_delta = 0.999, max_treedepth = 14))
 
-#Hurdle Model 1: Ignoring spatial variability, year effect only (Obj 2 analysis)
-hurdle1_formula <- bf(
-  #mu, mean part of formula
-  Prevalance ~ year,
-  #alpha, zero inflation part
-  hu ~ year) 
-
-hurdle1_tanner <- brm(hurdle1_formula,
-                      data = prev.tanner,
-                      family = hurdle_lognormal(),
-                      cores = 4, chains = 4, iter = 2500,
-                      save_pars = save_pars(all = TRUE),
-                      control = list(adapt_delta = 0.999, max_treedepth = 14))
-
-#Save output
-saveRDS(hurdle1_tanner, file = "./output/hurdle1_tanner.rds")
-hurdle1_tanner <- readRDS("./output/hurdle1_tanner.rds")
-
-tidy(hurdle1_tanner)
-pp_check(hurdle1_tanner) 
-#both zero and non zero processes incorporated into the posterior distribution
+#Save model output 
+saveRDS(nbs_annual_final, file = "./output/nbs_annual_final.rds")
+nbs_annual_final <- readRDS("./output/nbs_annual_final.rds")
 
 #MCMC convergence diagnostics 
-check_hmc_diagnostics(hurdle1_tanner$fit)
-neff_lowest(hurdle1_tanner$fit)
-rhat_highest(hurdle1_tanner$fit)
-summary(hurdle1_tanner)
-bayes_R2(hurdle1_tanner)
+check_hmc_diagnostics(nbs_annual_final$fit)
+neff_lowest(nbs_annual_final$fit)
+rhat_highest(nbs_annual_final$fit)
+summary(nbs_annual_final)
+bayes_R2(nbs_annual_final) #r2 = .14 
+loo(nbs_annual_final)
 
 #Diagnostic Plots
-plot(hurdle1_tanner, ask = FALSE)
-conditional_effects(hurdle1_tanner)
-mcmc_plot(hurdle1_tanner, prob = 0.95)
-mcmc_plot(hurdle1_tanner, transformations = "inv_logit_scaled")
+plot(nbs_annual_final, ask = FALSE)
+plot(conditional_effects(nbs_annual_final), ask = FALSE)
+mcmc_plot(nbs_annual_final, prob = 0.95)
+mcmc_neff(neff_ratio(nbs_annual_final)) #Effective sample size: All ratios > 0.1
 
+#Posterior Predictive Check Plots:
+pp_check(nbs_annual_final) #looks much better than ebs dataset!
+pp_check(nbs_annual_final, type = "ecdf_overlay")
+pp_check(nbs_annual_final, type = "stat", stat = "mean")
+pp_check(nbs_annual_final, type = "stat", stat = "min")
+pp_check(nbs_annual_final, type = "stat", stat = "max")
+
+#Pit plots
+pit <- function(y, yrep) {
+  n_draws <- nrow(yrep)
+  pit <- sapply(1:length(y),
+                \(n) {
+                  mean(y[n] > yrep[, n]) +
+                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
+                    # Held, L.: Predictive model assessment for count
+                    # data. Biometrics 65(4), 1254–1261 (2009).)
+                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
+                })
+  pmax(pmin(pit, 1), 0)
+}
+
+ppc_pit_ecdf(pit=pit(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_annual_final))) #no overdisersion, looks good
+ppc_intervals(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_annual_final)) 
+
+######################################
 #Conditional Effect for year 
-conditional_effects(hurdle1_tanner, effect = "year")
+conditional_effects(nbs_annual_final, effect = "year")
 
-ce1s_1 <- conditional_effects(hurdle1_tanner, effect = "year", re_formula = NA,
+ce1s_1 <- conditional_effects(nbs_annual_final, effect = "year", re_formula = NA,
                               probs = c(0.025, 0.975)) 
 ce1s_1$year %>%
   dplyr::select(year, estimate__, lower__, upper__) %>%
   mutate(species = "Tanner crab") -> year_tanner
 
-######################################
-#Combine snow and tanner plots for Fig 5 in ms 
+#Combine EBS and NBS plots for Fig 3 in ms 
 dodge <- position_dodge(width=0.5) #to offset datapoints on plot 
 
 new_colors <- c("#238b45","#2171b5")
@@ -189,3 +239,60 @@ year_tanner %>%
   theme(panel.grid.major.x = element_blank()) +
   theme(legend.title= element_blank())
 ggsave("./figs/annual_hurdle.png", dpi=300)
+
+#Conditional Effect 
+conditional_effects(tanner_year, effect = "year")
+
+ce1s_1 <- conditional_effects(tanner_year, effect = "year", re_formula = NA,
+                              probs = c(0.025, 0.975)) 
+ce1s_1$year %>%
+  dplyr::select(year, estimate__, lower__, upper__) %>%
+  mutate(species = "Tanner crab") -> year_tanner
+
+#Average marginal effect of year 
+years_ame <- tanner_year %>% 
+  emmeans(~ year,
+          var = "year",
+          epred = TRUE, re_formula = NA) %>% 
+  gather_emmeans_draws()
+
+ggplot(years_ame,aes(x = .value, fill=year)) +
+  stat_halfeye(slab_alpha = 0.75) +
+  labs(x = "Average marginal effect",
+       y = "Density") +
+  theme_bw()
+
+#Combine tanner/snow effects (run lines 862-902 in analyze_opilio.R first)
+dodge <- position_dodge(width=0.5) #to offset datapoints on plot 
+
+new_colors <- c("#238b45","#2171b5")
+
+year_tanner %>%
+  full_join(year_snow) %>%
+  #Combined conditional effect plot 
+  ggplot() +
+  geom_point(aes(year, estimate__, color=factor(species, 
+                                                levels = c("Tanner crab", "Snow crab"))), size=3,
+             position=dodge) +
+  geom_errorbar(aes(year, ymin=lower__, ymax=upper__, color=factor(species, 
+                                                                   levels = c("Tanner crab", "Snow crab"))), width=0.3, 
+                size=0.5, position=dodge) +
+  ylab("Probability of infection") + xlab("") +
+  scale_colour_manual(values = new_colors) +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank()) +
+  theme(legend.title= element_blank())
+ggsave("./figs/annual_brm.png", dpi=300)
+
+
+
+
+
+
+
+
+
+
+
+
+

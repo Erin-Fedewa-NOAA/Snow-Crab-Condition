@@ -1,0 +1,4 @@
+"","formula","elpd_diff","se_diff"
+"mod5","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) + (1 | region)",0,0
+"mod3","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) + s(fourth.root.cpue, k = 4) + (1 | region)",-8.91372855491397,4.57265317177646
+"mod1","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) + s(temperature, k = 4) + s(fourth.root.cpue, k = 4) + (1 | region)",-11.7384110476938,4.94310279263832
