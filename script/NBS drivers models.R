@@ -19,7 +19,7 @@ library(MARSS)
 library(corrplot)
 library(factoextra)
 library(patchwork)
-library(nbselr)
+library(modelr)
 library(broom.mixed)
 library(pROC)
 library(ggthemes)
@@ -224,14 +224,13 @@ mcmc_neff(neff_ratio(nbs4)) #Effective sample size: All ratios > 0.1
 pp_check(nbs4)
 
 summary(nbs4) 
-bayes_R2(nbs4) #R2 = 0.24
-loo(nbs4) -> d
-plot(d)
+bayes_R2(nbs4) #R2 = 0.19
+loo(nbs4) 
 
 # model comparison
 loo(nbs1, nbs2, nbs3, nbs4, moment_match = TRUE)
 #So seems that full additive nbsel has highest predictive capacity 
-#and is a substantial improvement over nbs3 and nbs1
+#and is a substantial improvement over nbs1 and nbs2
 
 ###################################
 #Full model Comparison (base model + base/cpue + base/cpue/temp)
@@ -245,7 +244,7 @@ loo_compare(nbs1, nbs2, nbs3, nbs4, criterion = "loo") %>% print(simplify = F)
 model.comp <- loo(nbs1, nbs2, nbs3, nbs4, moment_match = TRUE)
 
 #and loo weights
-nbsel_weights(nbs1, nbs2, nbs3, nbs4, weights = "loo") %>% round(digits = 2)
+model_weights(nbs1, nbs2, nbs3, nbs4, weights = "loo") %>% round(digits = 2)
 #Again, full model is best
 
 #Table of Rsq Values 
@@ -254,9 +253,9 @@ rbind(bayes_R2(nbs1),
       bayes_R2(nbs3),
       bayes_R2(nbs4)) %>%
   as_tibble() %>%
-  mutate(nbsel = c("nbs1", "nbs2", "nbs3", "nbs4"),
+  mutate(model = c("nbs1", "nbs2", "nbs3", "nbs4"),
          r_square_posterior_mean = round(Estimate, digits = 2)) %>%
-  select(nbsel, r_square_posterior_mean) 
+  select(model, r_square_posterior_mean) 
 
 #nbsel weights 
 loo1 <- loo(nbs1)
@@ -268,22 +267,22 @@ loo_list <- list(loo1, loo2, loo3, loo4)
 
 #Compute and compare Pseudo-BMA weights without Bayesian bootstrap, 
 #Pseudo-BMA+ weights with Bayesian bootstrap, and Bayesian stacking weights
-stacking_wts <- loo_nbsel_weights(loo_list, method="stacking")
-pbma_BB_wts <- loo_nbsel_weights(loo_list, method = "pseudobma")
-pbma_wts <- loo_nbsel_weights(loo_list, method = "pseudobma", BB = FALSE)
+stacking_wts <- loo_model_weights(loo_list, method="stacking")
+pbma_BB_wts <- loo_model_weights(loo_list, method = "pseudobma")
+pbma_wts <- loo_model_weights(loo_list, method = "pseudobma", BB = FALSE)
 round(cbind(stacking_wts, pbma_wts, pbma_BB_wts),2)
-#Full model is consistently highest weighted nbsel
+#Full model is consistently highest weighted 
 
 #Save model output 
-tab_nbsel(nbs1, nbs2, nbs3, nbs4)
+tab_model(nbs1, nbs2, nbs3, nbs4)
 
 forms <- data.frame(formula=c(as.character(nbs1_formula)[1],
                               as.character(nbs2_formula)[1],
                               as.character(nbs3_formula)[1],
                               as.character(nbs4_formula)[1]))
 
-comp.out <- cbind(forms, nbsel.comp$diffs[,1:2])
-write.csv(comp.out, "./output/nbs_pop_nbsel_comp.csv")
+comp.out <- cbind(forms, model.comp$diffs[,1:2])
+write.csv(comp.out, "./output/nbs_pop_model_comp.csv")
 
 #################################
 #FINAL MODEL:  Run nbs4 model with 10,000 iterations and set seed for reproducibility 
@@ -303,7 +302,7 @@ check_hmc_diagnostics(nbs_pop_final$fit)
 neff_lowest(nbs_pop_final$fit)
 rhat_highest(nbs_pop_final$fit)
 summary(nbs_pop_final)
-bayes_R2(nbs_pop_final) #r2 = .24
+bayes_R2(nbs_pop_final) #r2 = .20
 loo(nbs_pop_final)
 
 #Diagnostic Plots
@@ -311,7 +310,6 @@ plot(nbs_pop_final, ask = FALSE)
 plot(conditional_effects(nbs_pop_final), ask = FALSE)
 mcmc_plot(nbs_pop_final, prob = 0.95)
 mcmc_neff(neff_ratio(nbs_pop_final)) #Effective sample size: All ratios > 0.1
-hypothesis(nbs_pop_final, "stemperature_1" < 0)
 
 #Posterior Predictive Check Plots:
 pp_check(nbs_pop_final)
@@ -338,7 +336,7 @@ ppc_pit_ecdf(pit=pit(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs
 ppc_intervals(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_pop_final))
 
 ################################
-#Extract and plot conditional effects of each predictor from best nbsel (i.e. posterior distributions of conditional means)
+#Extract and plot conditional effects of each predictor from best model (i.e. posterior distributions of conditional means)
 #conditioning on the mean for all other predictors, yr/site effects ignored 
 
 #tidybayes method: massive dataset being passed to functions crashing R....skip to line 522
@@ -393,10 +391,10 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
   geom_rug(data = nbs.dat, aes(x = cw, y = Total_FA_Conc_WWT), 
-           colour = "grey80", size = .75, sides="b") + #raw data) 
-  labs(x = "Carapace width (mm)", y = "Energetic Condition (Total FA/WWT)") +
-  theme_bw() +
-  ylim(0,225) -> sizeplot
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data 
+  labs(x = "Carapace Width", y = "") +
+  theme_minimal() +
+  ylim(0,215) -> sizeplot
 
 ##Julian Day
 ## 95% CI
@@ -422,10 +420,10 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
   geom_rug(data = nbs.dat, aes(x = julian, y = Total_FA_Conc_WWT), 
-           colour = "grey80", size = .75, sides="b") + #raw data) 
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
   labs(x = "Day of Year", y = "") +
-  theme_bw() +
-  ylim(0,225) -> dayplot
+  theme_minimal() +
+  ylim(0,215) -> dayplot
 
 ##Snow Crab Density 
 ## 95% CI
@@ -451,10 +449,10 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
   geom_rug(data = nbs.dat, aes(x = fourth.root.cpue, y = Total_FA_Conc_WWT), 
-           colour = "grey80", size = .75, sides="b") + #raw data
-  labs(x = "Snow Crab Density (4th root CPUE)", y = "Energetic Condition (Total FA/WWT)") +
-  theme_bw() +
-  ylim(0, 225) -> cpueplot
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
+  labs(x = "Snow Crab Density", y = "") +
+  theme_minimal() +
+  ylim(0,215) -> cpueplot
 
 ##Temperature 
 ## 95% CI
@@ -479,17 +477,23 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
-  geom_rug(data = nbs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), colour = "grey80", 
-           size = .75, sides="b") + #raw data
-  labs(x = "Temperature (C)", y = "") +
-  theme_bw() +
-  ylim(0, 225) -> tempplot
+  geom_rug(data = nbs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), 
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
+  labs(x = "Bottom Temperature", y = "") +
+  theme_minimal() +
+  ylim(0, 215) -> tempplot
 
-#Combine plots for Fig 4 of MS
+#Combine plots for Fig 5 of MS
 (sizeplot + dayplot) / (cpueplot + tempplot) + 
-  plot_annotation(tag_levels = 'a', title = "Eastern Bering Sea Snow Crab",
-                  theme = theme(plot.title = element_text(hjust = 0.5)))
-ggsave("./figs/ebs_pop_Fig4.png")
+  plot_annotation(tag_levels = 'a', title = "Northern Bering Sea Snow Crab",
+                  theme = theme(plot.title = element_text(hjust = 0.5))) -> plot
+
+#workaround to get a single shared y axis label with patchwork 
+wrap_elements(plot) +
+  labs(tag = "Energetic Condition (Total FA/WWT)") +
+  theme(plot.tag = element_text(size = rel(1), angle = 90),
+        plot.tag.position = "left") -> final_plot
+ggsave("./figures/nbs_pop_Fig5.png", plot=final_plot)
 
 #####################################################
 #Marginal Effects: instantaneous slope of one explanatory value with all 
@@ -627,17 +631,17 @@ all_years_ame %>% median_hdi()
 
 ####################################
 #Goal #2: Interpret conditional effects of temperature and snow crab density within each year
-#Testing best nbsel from Goal #1 with year interactions
+#Testing best model from Goal #1 with year interactions
 
-#nbsEL 6 BASE nbsEL + TEMP*YR + DENSITY*YR: default priors, truncated Gaussian, 
+#MODEL 5 BASE + TEMP*YR + DENSITY*YR: default priors, truncated Gaussian, 
 #Covariates: crab size/julian day/random effect + temperature*year and 
 #density*year fixed effect 
 
-nbs6_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+nbs5_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
                       s(temperature, k=4, by=year) + s(fourth.root.cpue, k=4, by=year) +
                       (1 | region))  
 
-nbs6 <- brm(nbs6_formula,
+nbs5 <- brm(nbs5_formula,
             data = nbs.dat,
             family = gaussian,
             cores = 4, chains = 4, iter = 2500, warmup = 1000,
@@ -645,74 +649,75 @@ nbs6 <- brm(nbs6_formula,
             control = list(adapt_delta = 0.999, max_treedepth = 14))
 
 #Save output
-saveRDS(nbs6, file = "./output/nbs6.rds")
-nbs6 <- readRDS("./output/nbs6.rds")
+saveRDS(nbs5, file = "./output/nbs5.rds")
+nbs5 <- readRDS("./output/nbs5.rds")
 
 #MCMC convergence diagnostics 
-check_hmc_diagnostics(nbs6$fit)
-neff_lowest(nbs6$fit)
-rhat_highest(nbs6$fit) #Potential scale reduction: All rhats < 1.1
+check_hmc_diagnostics(nbs5$fit)
+neff_lowest(nbs5$fit)
+rhat_highest(nbs5$fit) #Potential scale reduction: All rhats < 1.1
 
 #Diagnostic Plots
-plot(nbs6, ask = FALSE)
-plot(conditional_effects(nbs6), ask = FALSE)
-mcmc_plot(nbs6, type = "areas", prob = 0.95)
-mcmc_neff(neff_ratio(nbs6)) #Effective sample size: All ratios > 0.1
-pp_check(nbs6)
+plot(nbs5, ask = FALSE)
+plot(conditional_effects(nbs5), ask = FALSE)
+mcmc_plot(nbs5, type = "areas", prob = 0.95)
+mcmc_neff(neff_ratio(nbs5)) #Effective sample size: All ratios > 0.1
+pp_check(nbs5)
 
-summary(nbs6) 
-bayes_R2(nbs6) #R2 = 0.45
-loo(nbs6) -> d
+summary(nbs5) 
+bayes_R2(nbs5) #R2 = 0.27
+loo(nbs5) -> d
 plot(d)
 
-# nbsel comparison
-loo(nbs5, nbs6, moment_match = TRUE)
+# model comparison
+loo(nbs4, nbs5, moment_match = TRUE)
+#model 5 is a substantial improvement over model 4
 
-# nbsel comparison
+# model comparison
 nbs1 <- add_criterion(nbs1, "loo")
+nbs2 <- add_criterion(nbs2, "loo")
 nbs3 <- add_criterion(nbs3, "loo")
 nbs4 <- add_criterion(nbs4, "loo")
 nbs5 <- add_criterion(nbs5, "loo")
-nbs6 <- add_criterion(nbs6, "loo")
-loo_compare(nbs1, nbs3, nbs4, nbs5, nbs6, criterion = "loo") %>% print(simplify = F)
+loo_compare(nbs1, nbs3, nbs3, nbs4, nbs5, criterion = "loo") %>% print(simplify = F)
 
 #and loo weights
-nbsel_weights(nbs1, nbs3, nbs4, nbs5, nbs6, weights = "loo") %>% round(digits = 2)
-#So seems that full nbsel with interactions has highest predictive capacity
+model_weights(nbs1, nbs2, nbs3, nbs4, nbs5, weights = "loo") %>% round(digits = 2)
+#So seems that full model with interactions has highest predictive capacity
 
 #################################
-#FINAL nbsEL:  Run nbs6 nbsel with 10,000 iterations and set seed for reproducibility 
-ebs_yrixn_final <- brm(nbs6_formula,
+#FINAL MODEL:  Run nbs5 model with 10,000 iterations and set seed for reproducibility 
+nbs_yrixn_final <- brm(nbs5_formula,
                        data = nbs.dat,
                        family = gaussian,
                        cores = 4, chains = 4, iter = 10000, warmup = 1000,
                        save_pars = save_pars(all = TRUE), seed = 3,
                        control = list(adapt_delta = 0.999, max_treedepth = 14))
 
-#Save nbsel output 
-saveRDS(ebs_yrixn_final, file = "./output/ebs_yrixn_final.rds")
-ebs_yrixn_final <- readRDS("./output/ebs_yrixn_final.rds")
+#Save model output 
+saveRDS(nbs_yrixn_final, file = "./output/nbs_yrixn_final.rds")
+nbs_yrixn_final <- readRDS("./output/nbs_yrixn_final.rds")
 
 #MCMC convergence diagnostics 
-check_hmc_diagnostics(ebs_yrixn_final$fit)
-neff_lowest(ebs_yrixn_final$fit)
-rhat_highest(ebs_yrixn_final$fit)
-summary(ebs_yrixn_final)
-bayes_R2(ebs_yrixn_final) 
-loo(ebs_yrixn_final)
+check_hmc_diagnostics(nbs_yrixn_final$fit)
+neff_lowest(nbs_yrixn_final$fit)
+rhat_highest(nbs_yrixn_final$fit)
+summary(nbs_yrixn_final)
+bayes_R2(nbs_yrixn_final) 
+loo(nbs_yrixn_final)
 
 #Diagnostic Plots
-plot(ebs_yrixn_final, ask = FALSE)
-plot(conditional_effects(ebs_yrixn_final), ask = FALSE)
-mcmc_plot(ebs_yrixn_final, prob = 0.95)
-mcmc_neff(neff_ratio(ebs_yrixn_final)) #Effective sample size: All ratios > 0.1
+plot(nbs_yrixn_final, ask = FALSE)
+plot(conditional_effects(nbs_yrixn_final), ask = FALSE)
+mcmc_plot(nbs_yrixn_final, prob = 0.95)
+mcmc_neff(neff_ratio(nbs_yrixn_final)) #Effective sample size: All ratios > 0.1
 
 #Posterior Predictive Check Plots:
-pp_check(ebs_yrixn_final) #this doesn't look great...
-pp_check(ebs_yrixn_final, type = "ecdf_overlay")
-pp_check(ebs_yrixn_final, type = "stat", stat = "mean")
-pp_check(ebs_yrixn_final, type = "stat", stat = "min")
-pp_check(ebs_yrixn_final, type = "stat", stat = "max")
+pp_check(nbs_yrixn_final) #looks pretty good!
+pp_check(nbs_yrixn_final, type = "ecdf_overlay")
+pp_check(nbs_yrixn_final, type = "stat", stat = "mean")
+pp_check(nbs_yrixn_final, type = "stat", stat = "min")
+pp_check(nbs_yrixn_final, type = "stat", stat = "max")
 
 #Pit plots
 pit <- function(y, yrep) {
@@ -728,8 +733,8 @@ pit <- function(y, yrep) {
   pmax(pmin(pit, 1), 0)
 }
 
-ppc_pit_ecdf(pit=pit(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_final))) #slight overdispersion
-ppc_intervals(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_final))
+ppc_pit_ecdf(pit=pit(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_yrixn_final))) #slight overdispersion
+ppc_intervals(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_yrixn_final))
 
 ################################
 #Extract and plot conditional effects of yr*cpue and yr*temperature interaction

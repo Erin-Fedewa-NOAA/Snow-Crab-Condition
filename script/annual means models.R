@@ -30,9 +30,25 @@ library(RColorBrewer)
 library(knitr)
 library(loo)
 library(sjPlot)
+library(hrbrthemes)
 source("./script/stan_utils.R")
 
+#load data
 condition_master <- read.csv("./data/total_FA_master.csv")
+
+#functions
+pit <- function(y, yrep) {
+  n_draws <- nrow(yrep)
+  pit <- sapply(1:length(y),
+                \(n) {
+                  mean(y[n] > yrep[, n]) +
+                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
+                    # Held, L.: Predictive model assessment for count
+                    # data. Biometrics 65(4), 1254–1261 (2009).)
+                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
+                })
+  pmax(pmin(pit, 1), 0)
+}
 
 #############################################
 #data wrangling- EBS dataset  
@@ -106,38 +122,22 @@ pp_check(ebs_annual_final, type = "stat", stat = "min")
 pp_check(ebs_annual_final, type = "stat", stat = "max")
 
 #Pit plots
-pit <- function(y, yrep) {
-  n_draws <- nrow(yrep)
-  pit <- sapply(1:length(y),
-                \(n) {
-                  mean(y[n] > yrep[, n]) +
-                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
-                    # Held, L.: Predictive model assessment for count
-                    # data. Biometrics 65(4), 1254–1261 (2009).)
-                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
-                })
-  pmax(pmin(pit, 1), 0)
-}
-
 ppc_pit_ecdf(pit=pit(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_annual_final))) #no overdisersion, looks good
 ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_annual_final))
 
 ################################
-#Plot conditional effect of year 
+#Extract conditional effect of year for plot
 
-#Could show as density plots instead of bar plots? See https://cran.r-project.org/web/packages/tidybayes/vignettes/tidy-brms.html
-
-#Conditional Effect for year 
 conditional_effects(ebs_annual_final, effect = "year")
 
 ce1s_1 <- conditional_effects(ebs_annual_final, effect = "year", re_formula = NA,
                               probs = c(0.025, 0.975)) 
 ce1s_1$year %>%
   dplyr::select(year, estimate__, lower__, upper__) %>%
-  mutate(species = "Tanner crab") -> year_tanner
+  mutate(lme = "Eastern Bering Sea")-> year_ebs
 
 #Average marginal effect of year 
-years_ame <- hurdle1_snow %>% 
+years_ame <- ebs_annual_final %>% 
   emmeans(~ year,
           var = "year",
           epred = TRUE, re_formula = NA) %>% 
@@ -146,12 +146,12 @@ years_ame <- hurdle1_snow %>%
 years_ame %>%
   median_hdi()
 
+#ebs marginal effects plot 
 ggplot(years_ame,aes(x = .value, fill=year)) +
   stat_halfeye(slab_alpha = 0.75) +
   labs(x = "Average marginal effect",
        y = "Density") +
-  theme_bw()
-
+  theme_minimal()
 
 ##########################
 #Run NBS model
@@ -192,19 +192,6 @@ pp_check(nbs_annual_final, type = "stat", stat = "min")
 pp_check(nbs_annual_final, type = "stat", stat = "max")
 
 #Pit plots
-pit <- function(y, yrep) {
-  n_draws <- nrow(yrep)
-  pit <- sapply(1:length(y),
-                \(n) {
-                  mean(y[n] > yrep[, n]) +
-                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
-                    # Held, L.: Predictive model assessment for count
-                    # data. Biometrics 65(4), 1254–1261 (2009).)
-                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
-                })
-  pmax(pmin(pit, 1), 0)
-}
-
 ppc_pit_ecdf(pit=pit(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_annual_final))) #no overdisersion, looks good
 ppc_intervals(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_annual_final)) 
 
@@ -212,32 +199,27 @@ ppc_intervals(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_annual
 #Conditional Effect for year 
 conditional_effects(nbs_annual_final, effect = "year")
 
-ce1s_1 <- conditional_effects(nbs_annual_final, effect = "year", re_formula = NA,
+ce1s_1_nbs <- conditional_effects(nbs_annual_final, effect = "year", re_formula = NA,
                               probs = c(0.025, 0.975)) 
-ce1s_1$year %>%
+ce1s_1_nbs$year %>%
   dplyr::select(year, estimate__, lower__, upper__) %>%
-  mutate(species = "Tanner crab") -> year_tanner
+  mutate(lme = "Northern Bering Sea") -> year_nbs
 
 #Combine EBS and NBS plots for Fig 3 in ms 
-dodge <- position_dodge(width=0.5) #to offset datapoints on plot 
-
-new_colors <- c("#238b45","#2171b5")
-
-year_tanner %>%
-  full_join(year_snow) %>%
-  #Combined conditional effect plot 
+year_ebs %>%
+  full_join(year_nbs) %>%
+  #Combined point estimate plot 
   ggplot() +
-  geom_point(aes(year, estimate__, color=factor(species, 
-                                                levels = c("Tanner crab", "Snow crab"))), size=3,
-             position=dodge) +
-  geom_errorbar(aes(year, ymin=lower__, ymax=upper__, color=factor(species, 
-                                                                   levels = c("Tanner crab", "Snow crab"))), width=0.3, 
-                size=0.5, position=dodge) +
-  ylab("Prevalance (%)") + xlab("") +
-  scale_colour_manual(values = new_colors) +
-  theme_bw() +
+  geom_bar(aes(year, estimate__), stat='identity', size=3) +
+  geom_errorbar(aes(year, ymin=lower__, ymax=upper__), width=0.3, size=0.5) +
+  ylab("Energetic Condition") + xlab("") +
+  #scale_colour_manual(values = new_colors) +
+  theme_ipsum(axis_title_just = "cc", axis_title_size = 14, axis_text_size =12) +
   theme(panel.grid.major.x = element_blank()) +
-  theme(legend.title= element_blank())
+  theme(axis.text=element_text(size=22),
+        axis.title=element_text(size=14)) +
+  facet_wrap(~lme)
+#colors of bars, and add mid/post collapse to EBS figure 
 ggsave("./figs/annual_hurdle.png", dpi=300)
 
 #Conditional Effect 
@@ -286,7 +268,7 @@ ggsave("./figs/annual_brm.png", dpi=300)
 
 
 
-
+#Could show as density plots instead of bar plots? See https://cran.r-project.org/web/packages/tidybayes/vignettes/tidy-brms.html
 
 
 
