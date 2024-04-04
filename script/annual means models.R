@@ -50,6 +50,11 @@ pit <- function(y, yrep) {
   pmax(pmin(pit, 1), 0)
 }
 
+#colors
+my_colors <- c("#D55E00","#9ECAE1", "#4292C6", "#084594")
+my_colors2 <- RColorBrewer::brewer.pal(7, "GnBu")[c(5,6)]
+
+
 #############################################
 #data wrangling- EBS dataset  
 condition_master %>%
@@ -134,9 +139,19 @@ ce1s_1 <- conditional_effects(ebs_annual_final, effect = "year", re_formula = NA
                               probs = c(0.025, 0.975)) 
 ce1s_1$year %>%
   dplyr::select(year, estimate__, lower__, upper__) %>%
-  mutate(lme = "Eastern Bering Sea")-> year_ebs
+  mutate(lme = as.factor("Eastern Bering Sea"))-> year_ebs
 
-#Average marginal effect of year 
+#Conditional predictions/effect = average region = re_formula = NA: effect of x in an average region
+  #random offsets of region set to 0, so ignoring them 
+#Marginal predictions/effect = regions on average = re_formula = NULL: average effect of x across all regions
+
+#Calculate the average marginal effect for each categorical year (in units of response)
+avg_comparisons(ebs_annual_final, variables = "year")
+
+#generate predictions for each row of original data, and then collapse to averages:
+avg_slopes(ebs_annual_final) #equivalent to emtrends()
+
+#Average marginal effect of year (difference across yrs while holding cw and julian day constant)
 years_ame <- ebs_annual_final %>% 
   emmeans(~ year,
           var = "year",
@@ -203,72 +218,36 @@ ce1s_1_nbs <- conditional_effects(nbs_annual_final, effect = "year", re_formula 
                               probs = c(0.025, 0.975)) 
 ce1s_1_nbs$year %>%
   dplyr::select(year, estimate__, lower__, upper__) %>%
-  mutate(lme = "Northern Bering Sea") -> year_nbs
+  mutate(lme = as.factor("Northern Bering Sea")) -> year_nbs
 
 #Combine EBS and NBS plots for Fig 3 in ms 
 year_ebs %>%
-  full_join(year_nbs) %>%
-  #Combined point estimate plot 
-  ggplot() +
-  geom_bar(aes(year, estimate__), stat='identity', size=3) +
+  full_join(year_nbs) -> dat2
+#now plot
+ggplot(dat2, aes(year, estimate__,)) +
+  geom_bar(aes(fill = ordered(year)), stat='identity', size=3) +
   geom_errorbar(aes(year, ymin=lower__, ymax=upper__), width=0.3, size=0.5) +
   ylab("Energetic Condition") + xlab("") +
-  #scale_colour_manual(values = new_colors) +
-  theme_ipsum(axis_title_just = "cc", axis_title_size = 14, axis_text_size =12) +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(axis.text=element_text(size=22),
-        axis.title=element_text(size=14)) +
-  facet_wrap(~lme)
-#colors of bars, and add mid/post collapse to EBS figure 
-ggsave("./figs/annual_hurdle.png", dpi=300)
-
-#Conditional Effect 
-conditional_effects(tanner_year, effect = "year")
-
-ce1s_1 <- conditional_effects(tanner_year, effect = "year", re_formula = NA,
-                              probs = c(0.025, 0.975)) 
-ce1s_1$year %>%
-  dplyr::select(year, estimate__, lower__, upper__) %>%
-  mutate(species = "Tanner crab") -> year_tanner
-
-#Average marginal effect of year 
-years_ame <- tanner_year %>% 
-  emmeans(~ year,
-          var = "year",
-          epred = TRUE, re_formula = NA) %>% 
-  gather_emmeans_draws()
-
-ggplot(years_ame,aes(x = .value, fill=year)) +
-  stat_halfeye(slab_alpha = 0.75) +
-  labs(x = "Average marginal effect",
-       y = "Density") +
-  theme_bw()
-
-#Combine tanner/snow effects (run lines 862-902 in analyze_opilio.R first)
-dodge <- position_dodge(width=0.5) #to offset datapoints on plot 
-
-new_colors <- c("#238b45","#2171b5")
-
-year_tanner %>%
-  full_join(year_snow) %>%
-  #Combined conditional effect plot 
-  ggplot() +
-  geom_point(aes(year, estimate__, color=factor(species, 
-                                                levels = c("Tanner crab", "Snow crab"))), size=3,
-             position=dodge) +
-  geom_errorbar(aes(year, ymin=lower__, ymax=upper__, color=factor(species, 
-                                                                   levels = c("Tanner crab", "Snow crab"))), width=0.3, 
-                size=0.5, position=dodge) +
-  ylab("Probability of infection") + xlab("") +
-  scale_colour_manual(values = new_colors) +
-  theme_bw() +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(legend.title= element_blank())
-ggsave("./figs/annual_brm.png", dpi=300)
+  scale_fill_manual(values=my_colors) +
+  facet_wrap(~lme) +
+  #geom_vline(data = subset(dat2, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
+  #geom_text(data = subset(dat2, lme == "Eastern Bering Sea"), aes(x = 1, y=185, label = "Mid-collapse"),
+            #size = 2.4, color = "#D55E00") +
+  #geom_text(data = subset(dat2, lme == "Eastern Bering Sea"), aes(x = 3, y=185, label = "Post-collapse"),
+            #size = 2.4, color = "#0072B2") +
+  geom_vline(aes(xintercept = 1.5), linetype="dashed") +
+  geom_text(aes(x = 1, y=185, label = "Mid-collapse"),
+  size = 2.4, color = "#D55E00") +
+  geom_text(aes(x = 3, y=185, label = "Post-collapse"),
+  size = 2.4, color = "#0072B2") +
+  theme_ipsum(axis_title_just = "cc", axis_title_size = 13, axis_text_size =11) +
+  theme(legend.position="none") +
+  theme(panel.grid.major.x = element_blank()) 
+  
+ggsave("./figures/Fig3.png", dpi=300, width = 6.5, height = 4.5, units = "in")
 
 
 
-#Could show as density plots instead of bar plots? See https://cran.r-project.org/web/packages/tidybayes/vignettes/tidy-brms.html
 
 
 

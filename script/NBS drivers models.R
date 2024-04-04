@@ -1,4 +1,4 @@
-#Investigate drivers of condition in NBS snow crab using Bayesian multivariate nbsels
+#Investigate drivers of condition in NBS snow crab using Bayesian multivariate models
 
 ##NOTE: WWT:DWT ratios appear to be affected by difference in sampling methods in 
 #2019. B/c total FA per WWT were not subject to the WWT:DWT discrepancy, it will be 
@@ -65,10 +65,10 @@ nbs.dat %>%
   ggplot(aes(Total_FA_Conc_WWT)) + 
   geom_density() #long tail, but more normalish than ebs dataset  
 
-#We'll go with truncated Gaussian, just like EBS nbsels 
+#We'll go with truncated Gaussian, just like EBS models 
 
 #############################################
-#NBS nbsels: 
+#NBS models: 
 #Using same approach as EBS drivers models.R script, but we're not testing benthic invert
   #models due to high correlations with temperature 
 
@@ -738,4 +738,75 @@ ppc_intervals(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_yrixn_
 
 ################################
 #Extract and plot conditional effects of yr*cpue and yr*temperature interaction
+
+#temperature*year
+conditions <- data.frame(year = c(2019, 2021, 2022, 2023))
+ce1s_1 <- conditional_effects(nbs_yrixn_final, effects = "temperature",conditions = conditions, re_formula = NA,
+                              probs = c(0.025, 0.975))
+
+## 90% CI
+ce1s_2 <- conditional_effects(nbs_yrixn_final, effects = "temperature",conditions = conditions, re_formula = NA,
+                              probs = c(0.05, 0.95))
+## 80% CI
+ce1s_3 <- conditional_effects(nbs_yrixn_final, effects = "temperature",conditions = conditions, re_formula = NA,
+                              probs = c(0.1, 0.9))
+dat_ce <- ce1s_1$temperature
+dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
+dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
+dat_ce[["upper_90"]] <- ce1s_2$temperature[["upper__"]]
+dat_ce[["lower_90"]] <- ce1s_2$temperature[["lower__"]]
+dat_ce[["upper_80"]] <- ce1s_3$temperature[["upper__"]]
+dat_ce[["lower_80"]] <- ce1s_3$temperature[["lower__"]]
+
+ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(year), fill = ordered(year))) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95, fill = ordered(year)), alpha = .1, colour = NA) +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90, fill = ordered(year)), alpha = .3, colour = NA) +
+  geom_line(aes(color = ordered(year)), size=1) +
+  geom_rug(data = nbs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), 
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
+  theme_minimal() +
+  labs(x = "Temperature", y = "Energetic Condition") +
+  theme(legend.position="bottom") +
+  theme(legend.title=element_blank()) +
+  scale_fill_manual(values = my_colors) +
+  scale_color_manual(values = my_colors) -> temp_nbs
+
+#density*year
+conditions <- data.frame(year = c(2019, 2021, 2022, 2023))
+ce1s_1 <- conditional_effects(nbs_yrixn_final, effects = "fourth.root.cpue",conditions = conditions, re_formula = NA,
+                              probs = c(0.025, 0.975))
+
+## 90% CI
+ce1s_2 <- conditional_effects(nbs_yrixn_final, effects = "fourth.root.cpue",conditions = conditions, re_formula = NA,
+                              probs = c(0.05, 0.95))
+## 80% CI
+ce1s_3 <- conditional_effects(nbs_yrixn_final, effects = "fourth.root.cpue",conditions = conditions, re_formula = NA,
+                              probs = c(0.1, 0.9))
+dat_ce <- ce1s_1$fourth.root.cpue
+dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
+dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
+dat_ce[["upper_90"]] <- ce1s_2$fourth.root.cpue[["upper__"]]
+dat_ce[["lower_90"]] <- ce1s_2$fourth.root.cpue[["lower__"]]
+dat_ce[["upper_80"]] <- ce1s_3$fourth.root.cpue[["upper__"]]
+dat_ce[["lower_80"]] <- ce1s_3$fourth.root.cpue[["lower__"]]
+
+ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(year), fill = ordered(year))) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95, fill = ordered(year)), alpha = .1, colour = NA) +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90, fill = ordered(year)), alpha = .3, colour = NA) +
+  geom_line(aes(color = ordered(year)), size=1) +
+  geom_rug(data = nbs.dat, aes(x = fourth.root.cpue, y = Total_FA_Conc_WWT), 
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
+  theme_minimal() +
+  labs(x = "Snow Crab Density", y = "Energetic Condition") +
+  theme(legend.position="bottom") +
+  theme(legend.title=element_blank()) +
+  scale_fill_manual(values = my_colors) +
+  scale_color_manual(values = my_colors) -> cpue_nbs
+
+#Combine NBS plots 
+(cpue_nbs + temp_nbs) + plot_annotation(title = "Northern Bering Sea Snow Crab",
+                                theme = theme(plot.title = element_text(hjust = 0.5))) +
+  plot_layout(guides = "collect") & theme(legend.position = 'bottom') -> nbs
+
+#Combine with EBS plots in "EBS drivers models.R" script 
 

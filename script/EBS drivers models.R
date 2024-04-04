@@ -30,6 +30,7 @@ library(patchwork)
 library(modelr)
 library(broom.mixed)
 library(pROC)
+library(interactions)
 library(ggthemes)
 library(tidybayes)
 library(RColorBrewer)
@@ -38,7 +39,26 @@ library(loo)
 library(sjPlot)
 source("./script/stan_utils.R")
 
+#load data
 condition_master <- read.csv("./data/total_FA_master.csv")
+
+#run functions
+pit <- function(y, yrep) {
+  n_draws <- nrow(yrep)
+  pit <- sapply(1:length(y),
+                \(n) {
+                  mean(y[n] > yrep[, n]) +
+                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
+                    # Held, L.: Predictive model assessment for count
+                    # data. Biometrics 65(4), 1254–1261 (2009).)
+                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
+                })
+  pmax(pmin(pit, 1), 0)
+}
+
+#colors for plotting
+my_colors <- c("#D55E00","#9ECAE1", "#4292C6", "#084594")
+my_colors2 <- c("#2A788EFF", "#E7B800", "#440154FF", "#22A884FF")
 
 ################################
 #look at distributions of cpue covariates 
@@ -473,19 +493,6 @@ pp_check(ebs_pop_final, type = "stat", stat = "min")
 pp_check(ebs_pop_final, type = "stat", stat = "max")
   
 #Pit plots
-pit <- function(y, yrep) {
-  n_draws <- nrow(yrep)
-  pit <- sapply(1:length(y),
-                \(n) {
-                  mean(y[n] > yrep[, n]) +
-                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
-                    # Held, L.: Predictive model assessment for count
-                    # data. Biometrics 65(4), 1254–1261 (2009).)
-                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
-                })
-  pmax(pmin(pit, 1), 0)
-}
-
 ppc_pit_ecdf(pit=pit(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_pop_final))) #no overdisersion, looks good
 ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_pop_final))
 
@@ -496,28 +503,28 @@ ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_pop_fi
 #tidybayes method: massive dataset being passed to functions crashing R....skip to line 522
 
 #Plot posterior distributions of conditional means 
-ebs.dat %>%
+#ebs.dat %>%
   #generate grid with temperature predictions
-  data_grid(temperature = seq_range(temperature, n=100)) %>%
+ # data_grid(temperature = seq_range(temperature, n=100)) %>%
   #add draws from posterior distributions of conditional means
-  add_epred_draws(ebs_pop_final, re_formula = NA) -> dat.epred #no group level effects
+ # add_epred_draws(ebs_pop_final, re_formula = NA) -> dat.epred #no group level effects
 
 #temperature
-dat.epred %>%
-  ggplot(aes(x = temperature, y = Total_FA_Conc_WWT)) +
-   stat_lineribbon(aes(y = .epred)) +
-    geom_point(data = ebs.dat) 
+#dat.epred %>%
+ # ggplot(aes(x = temperature, y = Total_FA_Conc_WWT)) +
+  # stat_lineribbon(aes(y = .epred)) +
+   # geom_point(data = ebs.dat) 
     
 #Plot posterior predictions
-ebs.dat %>%
-  data_grid(temperature, cw, julian, fourth.root.cpue) %>%
-  add_predicted_draws(ebs_pop_final, re_formula = NA) -> dat.pospred
+#ebs.dat %>%
+ # data_grid(temperature, cw, julian, fourth.root.cpue) %>%
+  #add_predicted_draws(ebs_pop_final, re_formula = NA) -> dat.pospred
 
 #temperature
-dat.pospred %>%
-  ggplot(aes(x = temperature, y = Total_FA_Conc_WWT)) +
-  stat_lineribbon(aes(y = .prediction), .width = c(.95, .80), alpha = 1/4) +
-  geom_point(data = ebs.dat) 
+#dat.pospred %>%
+ # ggplot(aes(x = temperature, y = Total_FA_Conc_WWT)) +
+  #stat_lineribbon(aes(y = .prediction), .width = c(.95, .80), alpha = 1/4) +
+  g#eom_point(data = ebs.dat) 
 
  #Size effect plot 
 #Need to save settings from conditional effects as an object to plot in ggplot
@@ -545,10 +552,10 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
   geom_rug(data = ebs.dat, aes(x = cw, y = Total_FA_Conc_WWT), 
-           colour = "grey80", size = .75, sides="b") + #raw data) 
-  labs(x = "Carapace width (mm)", y = "Energetic Condition (Total FA/WWT)") +
-  theme_bw() +
-  ylim(0,225) -> sizeplot
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data 
+  labs(x = "Carapace Width", y = "") +
+  theme_minimal() +
+  ylim(0,215) -> sizeplot
 
 ##Julian Day
 ## 95% CI
@@ -574,10 +581,10 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
   geom_rug(data = ebs.dat, aes(x = julian, y = Total_FA_Conc_WWT), 
-           colour = "grey80", size = .75, sides="b") + #raw data) 
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
   labs(x = "Day of Year", y = "") +
-  theme_bw() +
-  ylim(0,225) -> dayplot
+  theme_minimal() +
+  ylim(0,215) -> dayplot
 
 ##Snow Crab Density 
 ## 95% CI
@@ -603,10 +610,10 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
   geom_rug(data = ebs.dat, aes(x = fourth.root.cpue, y = Total_FA_Conc_WWT), 
-           colour = "grey80", size = .75, sides="b") + #raw data
-  labs(x = "Snow Crab Density (4th root CPUE)", y = "Energetic Condition (Total FA/WWT)") +
-  theme_bw() +
-  ylim(0, 225) -> cpueplot
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
+  labs(x = "Snow Crab Density", y = "") +
+  theme_minimal() +
+  ylim(0,215) -> cpueplot
 
 ##Temperature 
 ## 95% CI
@@ -631,17 +638,23 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
   geom_line(size = 1, color = "black") +
-  geom_rug(data = ebs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), colour = "grey80", 
-           size = .75, sides="b") + #raw data
-  labs(x = "Temperature (C)", y = "") +
-  theme_bw() +
-  ylim(0, 225) -> tempplot
+  geom_rug(data = ebs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), 
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
+  labs(x = "Bottom Temperature", y = "") +
+  theme_minimal() +
+  ylim(0, 215) -> tempplot
 
 #Combine plots for Fig 4 of MS
 (sizeplot + dayplot) / (cpueplot + tempplot) + 
   plot_annotation(tag_levels = 'a', title = "Eastern Bering Sea Snow Crab",
-        theme = theme(plot.title = element_text(hjust = 0.5)))
-ggsave("./figs/ebs_pop_Fig4.png")
+        theme = theme(plot.title = element_text(hjust = 0.5))) -> plot
+
+#workaround to get a single shared y axis label with patchwork 
+wrap_elements(plot) +
+  labs(tag = "Energetic Condition (Total FA/WWT)") +
+  theme(plot.tag = element_text(size = rel(1), angle = 90),
+    plot.tag.position = "left") -> final_plot
+ggsave("./figures/ebs_pop_Fig4.png", plot=final_plot)
 
 #####################################################
 #Marginal Effects: instantaneous slope of one explanatory value with all 
@@ -807,7 +820,7 @@ rhat_highest(mod6$fit) #Potential scale reduction: All rhats < 1.1
 
 #Diagnostic Plots
 plot(mod6, ask = FALSE)
-plot(conditional_effects(mod6), ask = FALSE)
+plot(conditional_effects(mod6), ask = FALSE, points = TRUE, rug =TRUE)
 mcmc_plot(mod6, type = "areas", prob = 0.95)
 mcmc_neff(neff_ratio(mod6)) #Effective sample size: All ratios > 0.1
 pp_check(mod6)
@@ -867,26 +880,111 @@ pp_check(ebs_yrixn_final, type = "stat", stat = "min")
 pp_check(ebs_yrixn_final, type = "stat", stat = "max")
 
 #Pit plots
-pit <- function(y, yrep) {
-  n_draws <- nrow(yrep)
-  pit <- sapply(1:length(y),
-                \(n) {
-                  mean(y[n] > yrep[, n]) +
-                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
-                    # Held, L.: Predictive model assessment for count
-                    # data. Biometrics 65(4), 1254–1261 (2009).)
-                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
-                })
-  pmax(pmin(pit, 1), 0)
-}
-
 ppc_pit_ecdf(pit=pit(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_final))) #slight overdispersion
 ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_final))
 
 ################################
 #Extract and plot conditional effects of yr*cpue and yr*temperature interaction
 
+#temperature*year
+conditions <- data.frame(year = c(2019, 2021, 2022, 2023))
+ce1s_1 <- conditional_effects(ebs_yrixn_final, effects = "temperature",conditions = conditions, re_formula = NA,
+                    probs = c(0.025, 0.975))
 
+## 90% CI
+ce1s_2 <- conditional_effects(ebs_yrixn_final, effects = "temperature",conditions = conditions, re_formula = NA,
+                              probs = c(0.05, 0.95))
+## 80% CI
+ce1s_3 <- conditional_effects(ebs_yrixn_final, effects = "temperature",conditions = conditions, re_formula = NA,
+                              probs = c(0.1, 0.9))
+dat_ce <- ce1s_1$temperature
+dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
+dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
+dat_ce[["upper_90"]] <- ce1s_2$temperature[["upper__"]]
+dat_ce[["lower_90"]] <- ce1s_2$temperature[["lower__"]]
+dat_ce[["upper_80"]] <- ce1s_3$temperature[["upper__"]]
+dat_ce[["lower_80"]] <- ce1s_3$temperature[["lower__"]]
+
+ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(year), fill = ordered(year))) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95, fill = ordered(year)), alpha = .1, colour = NA) +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90, fill = ordered(year)), alpha = .3, colour = NA) +
+  geom_line(aes(color = ordered(year)), size=1) +
+  geom_rug(data = ebs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), 
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
+ theme_minimal() +
+  labs(x = "Temperature", y = "Energetic Condition") +
+  theme(legend.position="bottom") +
+  theme(legend.position="none") +
+   scale_fill_manual(values = my_colors) +
+  scale_color_manual(values = my_colors) -> temp
+
+#density*year
+conditions <- data.frame(year = c(2019, 2021, 2022, 2023))
+ce1s_1 <- conditional_effects(ebs_yrixn_final, effects = "fourth.root.cpue",conditions = conditions, re_formula = NA,
+                              probs = c(0.025, 0.975))
+
+## 90% CI
+ce1s_2 <- conditional_effects(ebs_yrixn_final, effects = "fourth.root.cpue",conditions = conditions, re_formula = NA,
+                              probs = c(0.05, 0.95))
+## 80% CI
+ce1s_3 <- conditional_effects(ebs_yrixn_final, effects = "fourth.root.cpue",conditions = conditions, re_formula = NA,
+                              probs = c(0.1, 0.9))
+dat_ce <- ce1s_1$fourth.root.cpue
+dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
+dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
+dat_ce[["upper_90"]] <- ce1s_2$fourth.root.cpue[["upper__"]]
+dat_ce[["lower_90"]] <- ce1s_2$fourth.root.cpue[["lower__"]]
+dat_ce[["upper_80"]] <- ce1s_3$fourth.root.cpue[["upper__"]]
+dat_ce[["lower_80"]] <- ce1s_3$fourth.root.cpue[["lower__"]]
+
+ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(year), fill = ordered(year))) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95, fill = ordered(year)), alpha = .1, colour = NA) +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90, fill = ordered(year)), alpha = .3, colour = NA) +
+  geom_line(aes(color = ordered(year)), size=1) +
+  geom_rug(data = ebs.dat, aes(x = fourth.root.cpue, y = Total_FA_Conc_WWT), 
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
+  theme_minimal() +
+  labs(x = "Snow Crab Density", y = "Energetic Condition") +
+  theme(legend.position="none") +
+  theme(legend.title=element_blank()) +
+  scale_fill_manual(values = my_colors) +
+  scale_color_manual(values = my_colors) -> cpue
+
+#Combine EBS plots 
+(cpue + temp)  + plot_annotation(title = "Eastern Bering Sea Snow Crab",
+theme = theme(plot.title = element_text(hjust = 0.5))) -> ebs
+                            
+#Now run lines 740 - 809 in "NBS drivers models.R" to comine EBS and NBS plots
+(ebs / plot_spacer() / nbs) + plot_layout(heights = c(5,.8,5)) +
+  plot_annotation(tag_levels = "a") -> combine_plot
+#sighhhh....patchwork doesn't preserve individual plot titles so we're adding in 
+  #extra white space to add after the fact - tag workaround does not work!
+#As a follow up- maybe try ggarrange() ? 
+
+ggsave("./figures/yrinteractions_Fig6.png", plot=combine_plot,
+       width = 6.5, height = 6.5, units = "in")
+
+#Use this instead of patchwork b/c titles are retained! Wohoo! 
+  #Just need to add labels in ebs/nbs plots first now
+ggarrange(ebs, nbs, nrow = 2, ncol = 1, labels = c("a","b"))
+
+###############Sort out this mess plus marginal effects above 
+
+ame_fancy_zi_quota <- ebs_pop_final %>%
+  avg_comparisons(variables = "temperature") %>% 
+  posterior_draws()
+
+ggplot(ame_fancy_zi_quota, aes(x = draw)) +
+  stat_halfeye(.width = c(0.8, 0.95), point_interval = "median_hdi",
+               fill = "#bc3032") +
+  labs(x = "Average marginal effect of having a gender-based\nquota on the proportion of women in parliament", y = NULL,
+       caption = "80% and 95% credible intervals shown in black") +
+  theme_clean()
+
+r_fancy <- ame_fancy_zi_quota %>% median_hdi(draw) #after accounting for other covariates, FA conc
+#of snow crab 
+
+mcmc_areas(as.matrix(mod2), regex_pars = "temperature")
 
 
 
@@ -916,58 +1014,12 @@ ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_
 #any other model diagnostics/comparisons
 #Extract draws and make plots - how to interpret interactions vrs overall effect?
 
-pit <- function(y, yrep) {
-  n_draws <- nrow(yrep)
-  pit <- sapply(1:length(y),
-                \(n) {
-                  mean(y[n] > yrep[, n]) +
-                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
-                    # Held, L.: Predictive model assessment for count
-                    # data. Biometrics 65(4), 1254–1261 (2009).)
-                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
-                })
-  pmax(pmin(pit, 1), 0)
-}
-
-ppc_pit_ecdf(pit=pit(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(mod2))) #overdispersion
-ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(mod2))
-
-
-#try this - posterior predictions via tidybayes
-ebs.dat %>%
-  group_by(year) %>%
-  data_grid(temperature = seq_range(temperature, n = 101)) %>%
-  add_predicted_draws(mod2, re_formula = NA, category="temperature") %>% #can use add_epred_draws() instead for posterior means
-  ggplot(aes(x = temperature, y = Total_FA_Conc_WWT, color = ordered(year), fill = ordered(year))) +
-  stat_lineribbon(aes(y = .prediction), .width = c(.95, .80, .50), alpha = 1/4) +
-  geom_point(data = ebs.dat, colour = "darkseagreen4", size = 3) +
-  scale_fill_brewer(palette = "Set2") +
-  scale_color_brewer(palette = "Dark2")
-
-#or faceted
-#facet_grid(.~year, space="free_x", scales="free_x")
-ame_fancy_zi_quota <- mod2 %>%
-  avg_comparisons(variables = "temperature") %>% 
-  posterior_draws()
-
-ggplot(ame_fancy_zi_quota, aes(x = draw)) +
-  stat_halfeye(.width = c(0.8, 0.95), point_interval = "median_hdi",
-               fill = "#bc3032") +
-  labs(x = "Average marginal effect of having a gender-based\nquota on the proportion of women in parliament", y = NULL,
-       caption = "80% and 95% credible intervals shown in black") +
-  theme_clean()
-
-r_fancy <- ame_fancy_zi_quota %>% median_hdi(draw) #after accounting for other covariates, FA conc
-#of snow crab 
-
-mcmc_areas(as.matrix(mod2), regex_pars = "temperature")
 
 
 
-#Add a, b and c to figs
-patchwork + 
-  plot_annotation(tag_levels = 'A') & 
-  theme(plot.tag = element_text(size = 8))
+
+
+
 
 
 
