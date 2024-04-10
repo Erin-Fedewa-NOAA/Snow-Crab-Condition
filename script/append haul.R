@@ -8,8 +8,7 @@
 
 #Follow ups: Change chela NBS vrs EBS script section to recognize 01 vrs 02 string 
  
-# Author: Erin Fedewa
-# last updated: 10/10/23
+# Author: EJF
 
 # load ----
 library(tidyverse)

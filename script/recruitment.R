@@ -5,8 +5,7 @@
 
 #Note: Abundance script has NOT been error checked 
 
-# Author: Erin Fedewa
-# last updated: 2/27/23
+# Author: EJF
 
 # load ----
 library(tidyverse)

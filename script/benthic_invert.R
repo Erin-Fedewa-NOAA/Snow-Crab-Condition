@@ -2,7 +2,7 @@
 #Summarize station-level benthic invert mean CPUE to append to snow crab condition datasets
   #to use as a covariate for modeling 
 
-# Erin Fedewa
+# Author: EJF
 # last updated: 2024/3/13 with 2023 groundfish data 
 
 #Note: This script uses a groundfish dataset that is generated via the Snow Crab 

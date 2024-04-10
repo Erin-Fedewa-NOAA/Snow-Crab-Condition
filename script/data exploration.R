@@ -1,7 +1,6 @@
 #Data exploration plots & data summaries for total FA dataset
 
-# Author: Erin Fedewa
-# last updated: 1/5/24
+# Author: EJF
 
 # load ----
 library(tidyverse)
@@ -12,7 +11,6 @@ library(viridis)
 library(ggridges)
 library(RColorBrewer)
 library(broom)
-
 
 condition_master <- read.csv("./data/total_FA_master.csv")
 

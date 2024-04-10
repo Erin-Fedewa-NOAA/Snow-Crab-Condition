@@ -3,8 +3,7 @@
 #NOTE: We're removing 2019 from validation models b/c methods differed (i.e. hepatos were dissected
   #in the lab after freezing whole crab, and likely affects WWT:DWT ratio due to water loss)
 
-# Author: Erin Fedewa
-# last updated: 3/5/24
+# Author: EJF
 
 # load ----
 library(tidyverse)

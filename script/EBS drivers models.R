@@ -21,19 +21,22 @@ library(lubridate)
 library(rstan)
 library(brms)
 library(bayesplot)
+library(performance)
 library(marginaleffects)
 library(emmeans)
-library(MARSS)
 library(corrplot)
 library(factoextra)
 library(patchwork)
 library(modelr)
 library(broom.mixed)
 library(pROC)
+library(ggpubr)
 library(interactions)
+library(priorsense)
 library(ggthemes)
 library(tidybayes)
 library(RColorBrewer)
+library(bayestestR)
 library(knitr)
 library(loo)
 library(sjPlot)
@@ -41,20 +44,6 @@ source("./script/stan_utils.R")
 
 #load data
 condition_master <- read.csv("./data/total_FA_master.csv")
-
-#run functions
-pit <- function(y, yrep) {
-  n_draws <- nrow(yrep)
-  pit <- sapply(1:length(y),
-                \(n) {
-                  mean(y[n] > yrep[, n]) +
-                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
-                    # Held, L.: Predictive model assessment for count
-                    # data. Biometrics 65(4), 1254–1261 (2009).)
-                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
-                })
-  pmax(pmin(pit, 1), 0)
-}
 
 #colors for plotting
 my_colors <- c("#D55E00","#9ECAE1", "#4292C6", "#084594")
@@ -198,28 +187,50 @@ loo_compare(loo_normal_trunc, loo_skew_trunc, loo_normal_log_jacobian, loo_skew_
 #EBS Models: 
 #Model runs not shown here, but group-level effects structure was explored. Due to the high number of stations
   #containing only 1 crab, 1|station and nested 1|region/station models had convergence issues. 
-#We'll go with 1|region to at least attempt to account for the repeat sampling design, and note that
+#We'll go with 1|region to account for the repeat sampling design, and note that
   #we're not using 1|year/region b/c this confounds covariate effects with strong annual signals like temp! 
 
 ####################################
 #Goal #1: Interpret population-level effects of temperature and snow crab density across years
 
-#MODEL 1 BASE MODEL: default, truncated Gaussian, 
+#MODEL 1 BASE MODEL: default priors, truncated Gaussian, 
   #Covariates: crab size/julian day/random effect (all nuisance sampling design covariates)
-    #Note: weakly informative priors were tested, but don't improve pp checks
-
-mod1_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+   
+mod1_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
                       (1 | region)) 
 
 ## Show default priors
-get_prior(mod1_formula, ebs.dat)
+get_prior(mod5_formula, ebs.dat)
+
+#informing priors- scaled based on the mean and standard deviation of x and y in the population
+sd_x <- sd(ebs.dat$temperature)
+sd_x2 <- sd(ebs.dat$fourth.root.cpue)
+sd_x3 <- sd(ebs.dat$julian)
+sd_x4 <- sd(ebs.dat$cw)
+sd_y <- sd(ebs.dat$Total_FA_Conc_WWT) #59 
+mean_y <- mean(ebs.dat$Total_FA_Conc_WWT) #96 
+sd_temp <- 2.5*sd_y/sd_x #96
+sd_cpue <- 2.5*sd_y/sd_x2 #29
+sd_julian <- 2.5*sd_y/sd_x3 #15
+sd_cw <- 2.5*sd_y/sd_x4 #8
+
+#Setting weak priors with heavy tails - this is for full model 5, with all covariates  
+priors_set <- c(set_prior("student_t(3, 0, 96)", class = "b", coef = "stemperature_1"),
+                set_prior("student_t(3, 0, 29)", class = "b", coef = "sfourth.root.cpue_1"),
+                set_prior("student_t(3, 0, 15)", class = "b", coef = "sjulian_1"),
+                set_prior("student_t(3, 0, 8)", class = "b", coef = "scw_1"),
+                set_prior("student_t(3, 96, 59)", class = "Intercept", lb =0),
+                set_prior("student_t(3, 0, 49.1)", class = "sds"), #set from get_priors() on model run with default priors 
+                set_prior("student_t(3, 0, 49.1)", class = "sigma"))
+
+#Weakly informative priors were tested, but don't improve pp checks or sensitivities,
+  #we'll stick with default priors
 
 mod1 <- brm(mod1_formula,
             data = ebs.dat,
             family = gaussian,
-            #prior = c(prior(student_t(3, 96, 59), class = Intercept, lb = 0),
-              #prior(cauchy(0, 20),  class = sigma, lb = 0)),
-                        cores = 4, chains = 4, iter = 2500, warmup = 1000,
+            #prior = priors_set,
+            cores = 4, chains = 4, iter = 2500, warmup = 1000,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
 
@@ -240,15 +251,15 @@ mcmc_neff(neff_ratio(mod1)) #Effective sample size: All ratios > 0.1
 pp_check(mod1)
 
 summary(mod1) #credible intervals for spline variance parameters (sds) don't include 0, let's keep smooths
-bayes_R2(mod1) #R2 = 0.20
+bayes_R2(mod1) #R2 = 0.19
 loo(mod1) -> plot(a)
 
 ###########################
 #MODEL 2 BASE MODEL + INVERT: default priors, truncated Gaussian, 
 #Covariates: crab size/julian day/random effect + invert main effect 
 
-mod2_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
-                      s(fourth.root.invert, k = 4) + (1 | region))  
+mod2_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
+                      s(fourth.root.invert, k = 3) + (1 | region))  
 
 mod2 <- brm(mod2_formula,
             data = ebs.dat,
@@ -275,7 +286,7 @@ mcmc_neff(neff_ratio(mod2)) #Effective sample size: All ratios > 0.1
 pp_check(mod2)
 
 summary(mod2) 
-bayes_R2(mod2) #R2 = 0.22
+bayes_R2(mod2) #R2 = 0.21
 loo(mod2) -> b
 plot(b)
 
@@ -290,14 +301,12 @@ loo(mod1, mod2, moment_match = TRUE)
 #MODEL 3 BASE MODEL + CRAB DENSITY: default priors, truncated Gaussian, 
 #Covariates: crab size/julian day/random effect + crab density fixed effect
 
-mod3_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
-                       s(fourth.root.cpue, k=4) + (1 | region))  
+mod3_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
+                       s(fourth.root.cpue, k=3) + (1 | region))  
 
 mod3 <- brm(mod3_formula,
             data = ebs.dat,
             family = gaussian,
-            prior = c(prior(student_t(3, 96, 59), class = Intercept, lb = 0),
-            prior(cauchy(0, 20),  class = sigma, lb = 0)),
             cores = 4, chains = 4, iter = 2500, warmup = 1000,
             save_pars = save_pars(all = TRUE),
             control = list(adapt_delta = 0.999, max_treedepth = 14))
@@ -476,7 +485,9 @@ neff_lowest(ebs_pop_final$fit)
 rhat_highest(ebs_pop_final$fit)
 summary(ebs_pop_final)
 bayes_R2(ebs_pop_final) #r2 = .24
-loo(ebs_pop_final)
+r2_bayes(ebs_pop_final) #conditional r2 takes both fixed and random effects into account 
+loo1 <- loo(ebs_pop_final, save_psis = TRUE)
+plot(loo1)
 
 #Diagnostic Plots
 plot(ebs_pop_final, ask = FALSE)
@@ -492,15 +503,36 @@ pp_check(ebs_pop_final, type = "stat", stat = "mean")
 pp_check(ebs_pop_final, type = "stat", stat = "min")
 pp_check(ebs_pop_final, type = "stat", stat = "max")
   
-#Pit plots
+#Marginal posterior predictive checks: Pit plots
 ppc_pit_ecdf(pit=pit(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_pop_final))) #no overdisersion, looks good
 ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_pop_final))
+
+ppc_loo_pit_qq(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_pop_final),
+  lw = weights(loo1$psis_object)) #looks fairly uniform, no clear model mispecifications
+
+#Determining the sensitivity of the posterior to perturbations of the prior and likelihood (priorsense package)
+  #prior sensitivity > .05 = prior-data conflict, and likelihood sensitivity < .05 = noninformative likelihood
+powerscale_sensitivity(ebs_pop_final) %>% print(n = 50)
+  #prior-data conflict = mismatch between prior and observed data, priors not on appropriate scale for predictors 
+
+#now visually inspect
+pss <- powerscale_sequence(ebs_pop_final) #estimate posterior draws based on power-scaling
+#estimate posterior draws based on power-scaling
+powerscale_plot_ecdf(pss, variables = c("sigma", "bs_sjulian_1", "bs_sfourth.root.cpue_1", "sds_scw_1"))
+
+#Detection of prior-data conflicts suggests a model modification using heavy tailed priors -
+  #this was tried (see model 1 script) and pp_checks did not improve 
 
 ################################
 #Extract and plot conditional effects of each predictor from best model (i.e. posterior distributions of conditional means)
   #conditioning on the mean for all other predictors, yr/site effects ignored 
 
-#tidybayes method: massive dataset being passed to functions crashing R....skip to line 522
+#tidybayes method: massive dataset being passed to add_epred_draws() crashing R....skip to line 522
+  #Matthew Kay advice: "if you are just creating the huge long format data frame as an intermediate 
+  #step (e.g. you are summarizing it down later), one way to solve this is to split up the input 
+  #prediction grid into chunks, and pass each chunk to add_epred_draws and do the summarization, 
+  #then combine the summaries i.e. split the output of data_grid(), summarize output 1 with epred, 
+  #then do the same with output 2 - ... Do this via a loop, or map()"
 
 #Plot posterior distributions of conditional means 
 #ebs.dat %>%
@@ -517,7 +549,7 @@ ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_pop_fi
     
 #Plot posterior predictions
 #ebs.dat %>%
- # data_grid(temperature, cw, julian, fourth.root.cpue) %>%
+  #data_grid(temperature, cw, julian, fourth.root.cpue) %>%
   #add_predicted_draws(ebs_pop_final, re_formula = NA) -> dat.pospred
 
 #temperature
@@ -526,6 +558,7 @@ ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_pop_fi
   #stat_lineribbon(aes(y = .prediction), .width = c(.95, .80), alpha = 1/4) +
   g#eom_point(data = ebs.dat) 
 
+####
  #Size effect plot 
 #Need to save settings from conditional effects as an object to plot in ggplot
 ## 95% CI
@@ -657,138 +690,106 @@ wrap_elements(plot) +
 ggsave("./figures/ebs_pop_Fig4.png", plot=final_plot)
 
 #####################################################
-#Marginal Effects: instantaneous slope of one explanatory value with all 
-#other values held constant
+#Other miscellaneous snippets of code 
 
-#Marginal effect at the mean: julian day slope
-ebs_pop_final %>%
-  emtrends(~ julian, 
-           var = "julian", 
-           regrid = "response")
-#on average, a one-day increase in Julian day is associated with a 1.1% increase in 
-#the probability of infection
+#probability of direction of effect 
+temp_draws <- ebs_pop_final %>%
+  spread_draws(bs_stemperature_1)
 
-#Marginal effect at various levels of julian day  
-ebs_pop_final %>% 
-  emtrends(~ julian, var = "julian",
-           at = list(julian = 
-                       seq(min(ebs.dat$julian), 
-                           max(ebs.dat$julian), 1)),
-           re_formula = NA) %>%
-  as_tibble() %>%
-  #and plot 
-  ggplot(aes(x = julian, y = julian.trend)) +
-  geom_ribbon(aes(ymin = lower.HPD, ymax = upper.HPD), alpha = 0.1) +
-  geom_line(size = 1) +
-  scale_fill_brewer(palette = "Reds") +
-  labs(x = "Julian Day", y = "Marginal effect of julian day on probability of infection") +
-  theme_bw() 
+ggplot(temp_draws, aes(x = bs_stemperature_1)) +
+  stat_halfeye() 
 
-#Marginal effect at the mean: cw 
-ebs_pop_final %>%
-  emtrends(~ cw, 
-           var = "cw", 
-           regrid = "response", re_formula = NA)
-#a 1mm increase in Julian day is associated with a 1.1% increase in 
-#the probability of infection
+  #Find the proportion of posterior draws that are bigger than 0
+temp_draws %>% 
+  summarize(prop_greater_0 = sum(bs_stemperature_1 < 0) / n())
+#99% chance a temperature effect is negative  
 
-#Marginal effect at various size crab 
-ebs_pop_final %>% 
-  emtrends(~ cw, var = "cw",
-           at = list(cw = 
-                       seq(min(ebs.dat$cw), 
-                           max(ebs.dat$cw), 1)),
-           re_formula = NA) %>%
-  as_tibble() %>%
-  #and plot 
-  ggplot(aes(x = cw, y = cw.trend)) +
-  geom_ribbon(aes(ymin = lower.HPD, ymax = upper.HPD), alpha = 0.1) +
-  geom_line(size = 1) +
-  scale_fill_brewer(palette = "Reds") +
-  labs(x = "Carapace width", y = "Marginal effect of size on probability of infection") +
-  theme_bw()  
+#Conditional predictions/effect = average region - re_formula = NA: effect of x in an average region
+#random offsets of region set to 0, so ignoring them 
+#Marginal predictions/effect = regions on average - re_formula = NULL: average effect of x across all regions
 
-######################################################
-#Generating posterior predictions for final model 
-
-#global size mean-ignoring year/site specific deviations 
-grand_mean <- ebs_pop_final %>% 
-  #create dataset across a range of observed sizes sampled
-  epred_draws(newdata = expand_grid(size = range(ebs.dat$size),
-                                    temperature = mean(ebs.dat$temperature), 
-                                    julian = mean(ebs.dat$julian)), 
-              re_formula = NA) #ignoring random effects 
-#plot
-ggplot(grand_mean, aes(x = size, y = .epred)) +
-  stat_lineribbon() +
-  scale_fill_brewer(palette = "Reds") +
-  labs(x = "Carapace width", y = "Probability of infection",
-       fill = "Credible interval") +
-  theme_bw() +
-  theme(legend.position = "bottom")
-
-#average marginal effect of size: i.e. finding the slope at different sizes 
-grand_mean_ame <- ebs_pop_final %>% 
-  emtrends(~ size,
-           var = "size",
-           at = list(julian = mean(ebs.dat$julian),
-                     temperature=mean(ebs.dat$temperature),
-                     size = c(30, 60, 90)),
-           epred = TRUE, re_formula = NA) %>% 
-  #get predicted values from posterior draws 
-  gather_emmeans_draws()
-
-ggplot(grand_mean_ame, aes(x = .value, fill = factor(size))) +
-  stat_halfeye(slab_alpha = 0.75) +
-  labs(x = "Average marginal effect of an increase in crab size",
-       y = "Density", fill = "Size") +
-  theme_bw() 
-#Sampling a 30mm crab is associated with a ~1% increase in prob of infection- 
-#smaller the size, larger the marginal effect 
-
-#Average overall slope at mean size 
-ebs_pop_final %>% 
-  emtrends(~ 1,
-           var = "size",
-           epred = TRUE, re_formula = NA) 
-
-#####
-
-#Year-specific posterior predictions across size 
-all_years <- ebs_pop_final %>% 
-  epred_draws(newdata = expand_grid(size = range(ebs.dat$size),
-                                    temperature = mean(ebs.dat$temperature), 
+#average marginal effect of temperature while holding other pop-level effects at mean
+pred_temp <- ebs_pop_final %>% 
+  epred_draws(newdata = expand_grid(temperature = seq_range(ebs.dat$temperature, n=100), 
+                                    cw = mean(ebs.dat$cw), 
                                     julian = mean(ebs.dat$julian), 
-                                    year = levels(ebs.dat$year)), 
-              re_formula = ~ (1 | year)) #only predict using yr effects, not site too 
+                                    fourth.root.cpue = mean(ebs.dat$fourth.root.cpue), 
+                                    region = levels(ebs.dat$region)), 
+              re_formula = NULL) #random effects included 
 
-ggplot(all_years, aes(x = size, y = .epred)) +
-  stat_lineribbon() +
+ggplot(pred_temp, aes(x = temperature, y = .epred)) +
+  stat_lineribbon() + 
   scale_fill_brewer(palette = "Reds") +
-  labs(x = "Carapace width", y = "Probability of Infection",
+  labs(x = "Temperature", y = "Predicted energetic condition",
        fill = "Credible interval") +
-  facet_wrap(vars(year)) +
-  theme_bw() +
+  theme_clean() +
   theme(legend.position = "bottom")
 
-#average marginal effect by year
-all_years_ame <- ebs_pop_final %>% 
-  emtrends(~ size + year,
-           var = "size",
-           at = list(year = levels(ebs.dat$year)),
-           epred = TRUE, re_formula = ~ (1 | year)) %>% 
-  gather_emmeans_draws()
+#Average marginal effect of temperature at different values 
+ame_temp <- ebs_pop_final %>% 
+  emtrends(~ temperature,
+           var = "temperature",
+           at = list(cw = mean(ebs.dat$cw), 
+                     julian = mean(ebs.dat$julian), 
+                     fourth.root.cpue = mean(ebs.dat$fourth.root.cpue),
+                     temperature = c(-1, 1, 3, 5)),
+           epred = TRUE) %>% 
+  gather_emmeans_draws() 
 
-ggplot(all_years_ame,aes(x = .value)) +
+ggplot(ame_temp, aes(x = .value, fill = factor(temperature))) +
   stat_halfeye(slab_alpha = 0.75) +
-  labs(x = "Average marginal effect of a\1-point increase in crab size",
-       y = "Density") +
-  facet_wrap(~year) +
-  theme_bw()
+  scale_fill_manual(values = my_colors) +
+  labs(x = "Average marginal effect of a 1C increase in bottom temperature",
+       y = "Density", fill = "Temperature (C)",
+       caption = "80% and 95% credible intervals shown in black") +
+  theme_clean() + 
+  theme(legend.position = "bottom")
+#A 2C increase in temp results in a 15% decline in condition
+  #I don't think this is correct?
 
-#post and interval summaries of draws from size effect 
-all_years_ame %>% median_hdi()
-#Very little variation in size effect across years 
+#And now let's play around with ROPEs: 
+  #https://easystats.github.io/bayestestR/articles/region_of_practical_equivalence.html#how-to-define-the-rope-range-
+
+perc_in_rope <- rope(ebs_pop_final, ci = 1) 
+#output shows percentage of CI that is in the null region (the ROPE)
+#the null hypothesis is rejected or accepted if the percentage of the posterior 
+#within the ROPE is smaller than to 2.5% or greater than 97.5%. 
+#Desirable results are low proportions inside the ROPE (closer to zero the better).
+
+outcome_tidy <- ebs_pop_final %>% 
+  tidy_draws() %>% 
+  rename(ate = `bs_stemperature_1`) #average temperature effect
+
+# Find the proportion of posterior draws that are less than 0
+outcome_tidy %>% 
+  summarize(prop_lessthan_0 = sum(ate < 0) / n())
+#99% chance that the average temperature effect is negative
+
+#calculate the proportion of the posterior distribution that falls within ROPE
+#set ROPE
+rope <- 0.1 * sd(ebs.dat$Total_FA_Conc_WWT) # +/- 5.9
+
+# Find the proportion of posterior draws that are less than 0
+prop_outside <- outcome_tidy %>% 
+  summarize(prop_outside_rope = 1 - sum(ate >= -5.9 & ate <= 5.9) / n())
+#99.8% of the posterior distribution lies outside the ROPE
+#pretty strong evidence of a large temperature effect 
+
+#plot
+ggplot(outcome_tidy, aes(x = ate)) +
+  stat_halfeye(aes(fill_ramp = after_stat(x >= 5.9 | x <= -5.9)), 
+               fill = "#4292C6", .width = c(0.95, 0.8)) +
+  #scale_fill_ramp_manual(my_colors, guide = "none") +
+  annotate(geom = "rect", xmin = -5.9, xmax = 5.9, ymin = -Inf, ymax = Inf, 
+           fill = "red", alpha = 0.3) +
+  labs(x = "Average temperature effect on energetic condition", y = NULL,
+       caption = "Median shown with point; 80% and 95% credible intervals shown with black bars",
+       y = "Posterior density") +
+  theme_minimal()
+#Given that we can't interpret credible intervals/estimates of smoothed 
+  #coefficients, I don't think this is a valid approach 
+#Also I think we'd need to standardize all response and predictor variables to obtain
+  #comparable effect sizes 
 
 ####################################
 #Goal #2: Interpret conditional effects of temperature and snow crab density within each year
@@ -864,7 +865,8 @@ neff_lowest(ebs_yrixn_final$fit)
 rhat_highest(ebs_yrixn_final$fit)
 summary(ebs_yrixn_final)
 bayes_R2(ebs_yrixn_final) 
-loo(ebs_yrixn_final)
+loo2 <- loo(ebs_yrixn_final, save_psis = TRUE)
+plot(loo2)
 
 #Diagnostic Plots
 plot(ebs_yrixn_final, ask = FALSE)
@@ -882,6 +884,12 @@ pp_check(ebs_yrixn_final, type = "stat", stat = "max")
 #Pit plots
 ppc_pit_ecdf(pit=pit(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_final))) #slight overdispersion
 ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_final))
+
+ppc_loo_pit_qq(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_final),
+               lw = weights(loo2$psis_object)) #hmmm..also not great
+
+#Not going to tackle for this iteration, but it may be worthwhile to set more informative 
+  #priors for this model. Diagnostic checks indicate that model isn't capturing extent of data 
 
 ################################
 #Extract and plot conditional effects of yr*cpue and yr*temperature interaction
@@ -908,7 +916,7 @@ dat_ce[["lower_80"]] <- ce1s_3$temperature[["lower__"]]
 ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(year), fill = ordered(year))) +
   geom_ribbon(aes(ymin = lower_95, ymax = upper_95, fill = ordered(year)), alpha = .1, colour = NA) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90, fill = ordered(year)), alpha = .3, colour = NA) +
-  geom_line(aes(color = ordered(year)), size=1) +
+  geom_line(aes(color = ordered(year)), linewidth=1) +
   geom_rug(data = ebs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), 
            colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
  theme_minimal() +
@@ -940,7 +948,7 @@ dat_ce[["lower_80"]] <- ce1s_3$fourth.root.cpue[["lower__"]]
 ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(year), fill = ordered(year))) +
   geom_ribbon(aes(ymin = lower_95, ymax = upper_95, fill = ordered(year)), alpha = .1, colour = NA) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90, fill = ordered(year)), alpha = .3, colour = NA) +
-  geom_line(aes(color = ordered(year)), size=1) +
+  geom_line(aes(color = ordered(year)), linewidth = 1) +
   geom_rug(data = ebs.dat, aes(x = fourth.root.cpue, y = Total_FA_Conc_WWT), 
            colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
   theme_minimal() +
@@ -951,68 +959,52 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(year), fill = 
   scale_color_manual(values = my_colors) -> cpue
 
 #Combine EBS plots 
-(cpue + temp)  + plot_annotation(title = "Eastern Bering Sea Snow Crab",
+(cpue + temp)  +  plot_annotation(tag_levels = 'a', title = "Eastern Bering Sea Snow Crab",
 theme = theme(plot.title = element_text(hjust = 0.5))) -> ebs
                             
 #Now run lines 740 - 809 in "NBS drivers models.R" to comine EBS and NBS plots
-(ebs / plot_spacer() / nbs) + plot_layout(heights = c(5,.8,5)) +
-  plot_annotation(tag_levels = "a") -> combine_plot
-#sighhhh....patchwork doesn't preserve individual plot titles so we're adding in 
-  #extra white space to add after the fact - tag workaround does not work!
-#As a follow up- maybe try ggarrange() ? 
+  #Using ggarrange instead of patchwork b/c both titles are retained!
+ggarrange(ebs, nbs, nrow = 2, ncol = 1)
 
 ggsave("./figures/yrinteractions_Fig6.png", plot=combine_plot,
        width = 6.5, height = 6.5, units = "in")
 
-#Use this instead of patchwork b/c titles are retained! Wohoo! 
-  #Just need to add labels in ebs/nbs plots first now
-ggarrange(ebs, nbs, nrow = 2, ncol = 1, labels = c("a","b"))
+#faceted year x temperature plot
+ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), alpha = .1, colour = NA) +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), alpha = .3, colour = NA) +
+  geom_line(size=1) +
+  geom_rug(data = ebs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), 
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
+  theme_minimal() +
+  labs(x = "Temperature", y = "Energetic Condition") +
+  theme(legend.position="bottom") +
+  theme(legend.title=element_blank()) +
+  scale_fill_manual(values = my_colors) +
+  scale_color_manual(values = my_colors) +
+  facet_wrap(~year)
 
-###############Sort out this mess plus marginal effects above 
-
-ame_fancy_zi_quota <- ebs_pop_final %>%
-  avg_comparisons(variables = "temperature") %>% 
-  posterior_draws()
-
-ggplot(ame_fancy_zi_quota, aes(x = draw)) +
-  stat_halfeye(.width = c(0.8, 0.95), point_interval = "median_hdi",
-               fill = "#bc3032") +
-  labs(x = "Average marginal effect of having a gender-based\nquota on the proportion of women in parliament", y = NULL,
-       caption = "80% and 95% credible intervals shown in black") +
-  theme_clean()
-
-r_fancy <- ame_fancy_zi_quota %>% median_hdi(draw) #after accounting for other covariates, FA conc
-#of snow crab 
-
-mcmc_areas(as.matrix(mod2), regex_pars = "temperature")
-
-
-
-#Priors? interaction model doesn't look great...
-#ditch table/model selection altogether? so phrase not as trying to determine drivers,
-  #but evaluate the effects of temp and density, phrasing intro as collapse/heat wave 
-#Sort out conditional vrs marginal - using the correct for Figs?
-#run final interaction model
-#figure out how to plot interactions for cpue/temp
-#seperate figure or combine?
-#run same models for NBS
+#faceted year x density plot
+ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), alpha = .1, colour = NA) +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), alpha = .3, colour = NA) +
+  geom_line(size=1) +
+  geom_rug(data = nbs.dat, aes(x = fourth.root.cpue, y = Total_FA_Conc_WWT), 
+           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
+  theme_minimal() +
+  labs(x = "Snow Crab Density ", y = "Energetic Condition") +
+  theme(legend.position="bottom") +
+  theme(legend.title=element_blank()) +
+  scale_fill_manual(values = my_colors) +
+  scale_color_manual(values = my_colors) +
+  facet_wrap(~year)
 
 
-#overall temp and density effect on conditon (avg effect across years)
-#And then, look at year interaction with best fit model to see if these 
-  #variables differ between pre and post collapse yrs (within yrs)
-#The strength of association and direction b/w temperature differs in heat wave yr
-#so strong temp effect, but yr still explains much of variation..likely b/c temp
-  #is a proxy for poor ecosystem conditions during collapse/heat wave
 
-#Read chp 8
-#read visualization paper Fig 6/9/10
-#use priorsense package to test prior and likelihood sensitivity
-#
-#Wed: 
-#Need to set seed and up iteration for final run
-#any other model diagnostics/comparisons
-#Extract draws and make plots - how to interpret interactions vrs overall effect?
+
+
+
+
 
 
 

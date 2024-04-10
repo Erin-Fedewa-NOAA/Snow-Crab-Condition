@@ -1,13 +1,12 @@
 #Predict condition for each year/region (EBS/NBS) after controlling for the effect of size due 
   #to difference in ontogeny/sex, seasonality due to sampling design of survey, and spatial 
-  #variation within the EBS
+  #variation within the EBS/NBS (region group-level effect)
 
 ##NOTE: WWT:DWT ratios appear to be affected by difference in sampling methods in 
 #2019. B/c total FA per WWT were not subject to the WWT:DWT discrepancy, it will be 
 #used as response variable in all further analyses. 
 
-# Author: Erin Fedewa
-# last updated: 3/12/24
+# Author: EJF
 
 # load ----
 library(tidyverse)
@@ -31,6 +30,7 @@ library(knitr)
 library(loo)
 library(sjPlot)
 library(hrbrthemes)
+library(bayestestR)
 source("./script/stan_utils.R")
 
 #load data
@@ -91,7 +91,7 @@ condition_master %>%
 ################################################
 #EBS ANNUAL MEANS
 
-ebs_annual_final_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+ebs_annual_final_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
                       year + (1 | region))  
 
 ebs_annual_final <- brm(ebs_annual_final_formula,
@@ -141,37 +141,43 @@ ce1s_1$year %>%
   dplyr::select(year, estimate__, lower__, upper__) %>%
   mutate(lme = as.factor("Eastern Bering Sea"))-> year_ebs
 
-#Conditional predictions/effect = average region = re_formula = NA: effect of x in an average region
-  #random offsets of region set to 0, so ignoring them 
-#Marginal predictions/effect = regions on average = re_formula = NULL: average effect of x across all regions
-
-#Calculate the average marginal effect for each categorical year (in units of response)
-avg_comparisons(ebs_annual_final, variables = "year")
-
-#generate predictions for each row of original data, and then collapse to averages:
-avg_slopes(ebs_annual_final) #equivalent to emtrends()
+#And some playing around with marginal effects/ROPE
 
 #Average marginal effect of year (difference across yrs while holding cw and julian day constant)
 years_ame <- ebs_annual_final %>% 
   emmeans(~ year,
           var = "year",
-          epred = TRUE, re_formula = NA) %>% 
+          epred = TRUE, re_formula = NULL) %>% 
   gather_emmeans_draws()
 
 years_ame %>%
   median_hdi()
 
 #ebs marginal effects plot 
-ggplot(years_ame,aes(x = .value, fill=year)) +
-  stat_halfeye(slab_alpha = 0.75) +
+ggplot(years_ame,aes(x = .value, fill=ordered(year))) +
+  stat_halfeye(slab_alpha = 0.7) +
   labs(x = "Average marginal effect",
        y = "Density") +
-  theme_minimal()
+  scale_fill_manual(values = my_colors) +
+  theme_minimal() + 
+  theme(legend.position="bottom") +
+  theme(legend.title=element_blank()) + 
+  ggtitle("Eastern Bering Sea") +
+  theme(plot.title = element_text(hjust = 0.5)) -> marg_ebs
+
+#And a hypothetical example of how you might annotate a domain-specific ROPE
+  #this would be a neat way to illustrate lab-derived FA thresholds! 
+ggplot(years_ame, aes(y = year, x = .value, fill = after_stat(abs(x) < 50))) +
+  stat_halfeye() +
+  geom_vline(xintercept = c(0, 50), linetype = "dashed") +
+  scale_fill_manual(values = c("gray80", "skyblue")) +
+  theme_minimal() + 
+  labs(x = "Average Marginal Effect on Energetic Condition", y="")
 
 ##########################
 #Run NBS model
 
-nbs_annual_final_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) +
+nbs_annual_final_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
                                   year + (1 | region))  
 
 nbs_annual_final <- brm(nbs_annual_final_formula,
@@ -190,7 +196,7 @@ check_hmc_diagnostics(nbs_annual_final$fit)
 neff_lowest(nbs_annual_final$fit)
 rhat_highest(nbs_annual_final$fit)
 summary(nbs_annual_final)
-bayes_R2(nbs_annual_final) #r2 = .14 
+bayes_R2(nbs_annual_final) #r2 = .11 
 loo(nbs_annual_final)
 
 #Diagnostic Plots
@@ -244,9 +250,30 @@ ggplot(dat2, aes(year, estimate__,)) +
   theme(legend.position="none") +
   theme(panel.grid.major.x = element_blank()) 
   
-ggsave("./figures/Fig3.png", dpi=300, width = 6.5, height = 4.5, units = "in")
+ggsave("./figures/Fig3.png", dpi=300, width = 7, height = 5, units = "in")
 
+#Average marginal effect of year (difference across yrs while holding cw and julian day constant)
+years_ame_nbs <- nbs_annual_final %>% 
+  emmeans(~ year,
+          var = "year",
+          epred = TRUE, re_formula = NULL) %>% 
+  gather_emmeans_draws()
 
+#nbs marginal effects plot 
+ggplot(years_ame_nbs,aes(x = .value, fill=ordered(year))) +
+  stat_halfeye(slab_alpha = 0.7) +
+  labs(x = "Average marginal effect",
+       y = "Density") +
+  scale_fill_manual(values = my_colors) +
+  theme_minimal() + 
+  theme(legend.position="bottom") +
+  theme(legend.title=element_blank()) + 
+  ggtitle("Northern Bering Sea") +
+  theme(plot.title = element_text(hjust = 0.5)) -> marg_nbs
+
+#combine plots
+marg_ebs + marg_nbs + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+ggsave("./figures/FigSupp.png", dpi=300, width = 6.5, height = 4.5, units = "in")
 
 
 

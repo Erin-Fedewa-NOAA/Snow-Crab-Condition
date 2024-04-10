@@ -1,5 +1,5 @@
 "","formula","elpd_diff","se_diff"
-"nbs4","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) + (1 | region)",0,0
-"nbs3","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) + s(fourth.root.cpue, k = 4) + (1 | region)",-2.56688916401423,2.74514154359526
-"nbs1","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) + s(temperature, k = 4) + (1 | region)",-18.7010472370801,7.343245885951
-"nbs2","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 4) + s(julian, k = 4) + s(temperature, k = 4) + s(fourth.root.cpue, k = 4) + (1 | region)",-19.2003797124569,7.12920418982924
+"mod4","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) + (1 | region)",0,0
+"mod5","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) + s(fourth.root.cpue, k = 3) + (1 | region)",-0.549923745725543,1.19496665774349
+"mod1","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) + s(temperature, k = 3) + (1 | region)",-12.7827020041177,4.8820729781484
+"mod3","Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) + s(temperature, k = 3) + s(fourth.root.cpue, k = 3) + (1 | region)",-13.6334942834382,5.02547350800864

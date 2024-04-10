@@ -1,6 +1,6 @@
 #Create metadata files for snow crab condition dataset
 
-#Author: Erin Fedewa
+#Author: EJF
 #Metadata created on 2/2/23
 
 library(dataspice)
