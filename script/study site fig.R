@@ -1,28 +1,35 @@
-# Accessing EBS survey shapefiles using the akgfmaps package
-# Created by Sean Rohan <sean.rohan@noaa.gov>
-# March 13, 2024
+# Goal: Create Fig 1 study area/cpue/temp plots
 
-install.packages("remotes")
-remotes::install_github("afsc-gap-products/akgfmaps")
+#NOTE: Accessing EBS survey shapefiles using the akgfmaps package
 
 library(akgfmaps)
+library(ggridges)
+library(patchwork)
+library(sf)
 
+#load data 
 condition_master <- read.csv("./data/total_FA_master.csv")
+
+#install.packages("remotes")
+#remotes::install_github("afsc-gap-products/akgfmaps")
+
+#colors
+my_colors <- c("#D55E00","#9ECAE1", "#4292C6", "#084594")
+options(scipen = 999)
+
+#################################
 
 # Plotting layers
 ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
 
-slope_layers <- akgfmaps::get_base_layers(select.region = "ebs.slope", set.crs = "EPSG:3338")
+ebs_survey_areas <- ebs_layers$survey.area
 
-survey_areas <- dplyr::bind_rows(ebs_layers$survey.area,
-                                 slope_layers$survey.area)
+ebs_survey_areas$survey_name <- c("Eastern Bering Sea", "Northern Bering Sea")
 
-survey_areas$survey_name <- c("EBS Shelf", "NBS", "EBS Slope")
-
-# Survey areas
+# Survey areas plot
 ggplot() +
   geom_sf(data = ebs_layers$akland) +
-  geom_sf(data = survey_areas, mapping = aes(fill = survey_name)) +
+  geom_sf(data = ebs_survey_areas, mapping = aes(fill = survey_name)) +
   scale_x_continuous(limits = ebs_layers$plot.boundary$x,
                      breaks = ebs_layers$lon.breaks) +
   scale_y_continuous(limits = ebs_layers$plot.boundary$y,
@@ -31,7 +38,7 @@ ggplot() +
   theme_bw()
 
 
-# EBS/NBS shelf Survey grid
+# EBS/NBS shelf Survey grid plot
 ggplot() +
   geom_sf(data = ebs_layers$akland) +
   geom_sf(data = ebs_layers$survey.grid, fill = NA) +
@@ -41,34 +48,144 @@ ggplot() +
                      breaks = ebs_layers$lat.breaks) +
   theme_bw()
 
-#Now how to overlay this on grid above?
+#Transform crab data 
 condition_master %>% 
   group_by(year, mid_latitude, mid_longitude) %>%
   summarise(n_crab=n()) %>%
-  ggplot() + 
-  geom_polygon(data = usa, aes(x = long, y = lat, group = group))+
-  geom_point(aes(x = mid_longitude, y = mid_latitude, size=n_crab), color= "light blue")+
-  coord_quickmap(xlim = c(-179, -158), ylim = c(53, 66)) +
-  theme_bw() +
-  facet_wrap(~year)
-ggsave("./figures/data exploration/n_year.png", dpi=300)
-
-
-
-
-
-
-
-
-# EBS/NBS shelf survey strata
+# Convert lat/long to an sf object
+  st_as_sf(coords = c("mid_longitude", "mid_latitude"), crs = st_crs(3338)) -> crab_dat
+  
+#And now plot survey grid with crab data  
 ggplot() +
-  geom_sf(data = ebs_layers$survey.strata,
-          mapping = aes(fill = factor(Stratum))) +
-  geom_sf_text(data = sf::st_centroid(ebs_layers$survey.strata),
-               mapping = aes(label = Stratum)) +
+  geom_sf(data = ebs_layers$survey.grid, fill=NA, color=alpha("grey80"))+
+  geom_sf(data = ebs_survey_areas, fill = NA) +
+  geom_sf(data = ebs_layers$akland, fill = "grey80", color = "black") +
+  #add crab layers
+  geom_sf(data=crab_dat, aes(size = n_crab), color = "light blue") +
   scale_x_continuous(limits = ebs_layers$plot.boundary$x,
                      breaks = ebs_layers$lon.breaks) +
   scale_y_continuous(limits = ebs_layers$plot.boundary$y,
                      breaks = ebs_layers$lat.breaks) +
-  scale_fill_viridis_d(name = "Stratum") +
-  theme_bw()
+  theme_bw() +
+  labs(x="", y="", size = expression(paste("Snow crab \n samples"))) +
+  facet_wrap(~year)
+ggsave("./figures/data exploration/n_year.png", dpi=300)
+
+
+###################################
+#(B) and (C) Panel Figures:
+#Barplots of annual mean cpue and temp for EBS and NBS
+  
+#cpue
+condition_master %>%
+  filter(lme %in% c("EBS", "NBS")) %>%
+  mutate(lme = recode(lme, EBS = "Eastern Bering Sea", NBS = "Northern Bering Sea")) %>%
+  distinct(year, lme, gis_station, cpue) %>%
+  group_by(year, lme) %>%
+  summarize(mean_cpue = mean(cpue, na.rm = T),
+            sd_cpue = sd(cpue, na.rm = T),
+            n_cpue = n()) %>%
+  mutate(se_cpue = sd_cpue / sqrt(n_cpue),
+         lower.ci = mean_cpue - qt(1 - (0.05 / 2), n_cpue - 1) * se_cpue,
+         upper.ci = mean_cpue + qt(1 - (0.05 / 2), n_cpue - 1) * se_cpue,
+         year = as.factor(year)) -> cpue.dat
+
+  ggplot(cpue.dat, aes(year, mean_cpue)) +
+  geom_col(aes(fill = ordered(year)), size=3) +
+  geom_errorbar(aes(year, ymin=mean_cpue - se_cpue, ymax=mean_cpue + se_cpue), width=0.3, size=0.5) +
+  ylab("Mean Snow Crab Density") + xlab("") +
+  scale_fill_manual(values=my_colors) +
+  facet_wrap(~lme, scales = "free_y") +
+  geom_vline(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
+  geom_text(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(x = 1, y=155000, label = "Mid-collapse"),
+    size = 2.4, color = "#D55E00") +
+  geom_text(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(x = 3, y=155000, label = "Post-collapse"),
+    size = 2.4, color = "#0072B2") +
+  geom_vline(data = subset(cpue.dat, lme == "Northern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
+  geom_text(data = subset(cpue.dat, lme == "Northern Bering Sea"), aes(x = 1, y=515000, label = "Mid-collapse"),
+            size = 2.4, color = "#D55E00") +
+  geom_text(data = subset(cpue.dat, lme == "Northern Bering Sea"), aes(x = 3, y=515000, label = "Post-collapse"),
+            size = 2.4, color = "#0072B2") +
+  theme_ipsum(axis_title_just = "cc", axis_title_size = 12, axis_text_size =10) +
+  theme(legend.position="none") +
+  theme(panel.grid.major.x = element_blank()) -> mean_cpue_plot
+
+#temperature
+  condition_master %>%
+    filter(lme %in% c("EBS", "NBS")) %>%
+    mutate(lme = recode(lme, EBS = "Eastern Bering Sea", NBS = "Northern Bering Sea")) %>%
+    distinct(year, lme, gis_station, gear_temperature) %>%
+    group_by(year, lme) %>%
+    summarize(mean_temp = mean(gear_temperature, na.rm = T),
+              sd_temp = sd(gear_temperature, na.rm = T),
+              n_temp = n()) %>%
+    mutate(se_temp = sd_temp / sqrt(n_temp),
+           lower.ci = mean_temp - qt(1 - (0.05 / 2), n_temp - 1) * se_temp,
+           upper.ci = mean_temp + qt(1 - (0.05 / 2), n_temp - 1) * se_temp,
+           year = as.factor(year)) -> temp.dat
+  
+  ggplot(temp.dat, aes(year, mean_temp)) +
+    geom_col(aes(fill = ordered(year)), size=3) +
+    geom_errorbar(aes(year, ymin=mean_temp - se_temp, ymax=mean_temp + se_temp), width=0.3, size=0.5) +
+    ylab("Mean Bottom Temperature") + xlab("") +
+    scale_fill_manual(values=my_colors) +
+    facet_wrap(~lme) +
+    geom_vline(aes(xintercept = 1.5), linetype="dashed") +
+    geom_text(aes(x = 1, y=3.3, label = "Mid-collapse"),
+              size = 2.4, color = "#D55E00") +
+    geom_text(aes(x = 3, y=3.3, label = "Post-collapse"),
+              size = 2.4, color = "#0072B2") +
+    theme_ipsum(axis_title_just = "cc", axis_title_size = 12, axis_text_size =10) +
+    theme(legend.position="none") +
+    theme(panel.grid.major.x = element_blank())  -> mean_temp_plot
+  
+#combine plots
+(mean_cpue_plot + mean_temp_plot) + plot_annotation(tag_levels = 'a')
+
+###############
+#Bonus Figs: And now pdfs by year
+  
+#temperature
+condition_master  %>%
+  filter(lme %in% c("EBS", "NBS")) %>%
+  group_by(year, lme, gis_station) %>%
+  summarise(temperature = mean(gear_temperature)) %>%
+  ggplot(aes(temperature,factor(year))) +
+  geom_density_ridges(aes(fill=factor(year)), scale=2,
+                      quantile_lines=TRUE,
+                      quantile_fun=function(x,...)mean(x),
+                      rel_min_height = 0.01, jittered_points = TRUE,
+                      position = position_points_jitter(width = 0.5, height = 0),
+                      point_shape = "|", point_size = 2,
+                      alpha = 0.7) +
+  scale_fill_manual(values = my_colors) +
+  facet_wrap(~lme) +
+  theme_bw() +
+  labs(x= "Bottom Temperature (C)", y = "Count") +
+  theme(legend.position="bottom") +
+  theme(legend.title=element_blank()) 
+  
+  #cpue 
+condition_master  %>%
+  filter(lme %in% c("EBS", "NBS")) %>%
+  group_by(year, lme, gis_station) %>%
+  summarise(cpue = mean(cpue)) %>%
+  ggplot(aes(cpue,factor(year))) +
+  geom_density_ridges(aes(fill=factor(year)), scale=2,
+                      quantile_lines=TRUE,
+                      quantile_fun=function(x,...)mean(x),
+                      rel_min_height = 0.01, jittered_points = TRUE,
+                      position = position_points_jitter(width = 0.5, height = 0),
+                      point_shape = "|", point_size = 2,
+                      alpha = 0.7) +
+  scale_fill_manual(values = my_colors) +
+  facet_wrap(~lme) +
+  theme_bw() +
+  labs(x= "Snow Crab Density", y = "Count") +
+  theme(legend.position="bottom") +
+  theme(legend.title=element_blank()) 
+
+
+
+
+
