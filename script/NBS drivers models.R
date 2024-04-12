@@ -324,32 +324,6 @@ ppc_loo_pit_qq(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_pop_f
 #Extract and plot conditional effects of each predictor from best model (i.e. posterior distributions of conditional means)
 #conditioning on the mean for all other predictors, yr/site effects ignored 
 
-#tidybayes method: massive dataset being passed to functions crashing R....skip to line 522
-
-#Plot posterior distributions of conditional means 
-nbs.dat %>%
-  #generate grid with temperature predictions
-  data_grid(temperature = seq_range(temperature, n=100)) %>%
-  #add draws from posterior distributions of conditional means
-  add_epred_draws(nbs_pop_final, re_formula = NA) -> dat.epred #no group level effects
-
-#temperature
-dat.epred %>%
-  ggplot(aes(x = temperature, y = Total_FA_Conc_WWT)) +
-  stat_lineribbon(aes(y = .epred)) +
-  geom_point(data = nbs.dat) 
-
-#Plot posterior predictions
-nbs.dat %>%
-  data_grid(temperature, cw, julian, fourth.root.cpue) %>%
-  add_predicted_draws(nbs_pop_final, re_formula = NA) -> dat.pospred
-
-#temperature
-dat.pospred %>%
-  ggplot(aes(x = temperature, y = Total_FA_Conc_WWT)) +
-  stat_lineribbon(aes(y = .prediction), .width = c(.95, .80), alpha = 1/4) +
-  geom_point(data = nbs.dat) 
-
 #Size effect plot 
 #Need to save settings from conditional effects as an object to plot in ggplot
 ## 95% CI
@@ -468,7 +442,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   theme_minimal() +
   ylim(0, 215) -> tempplot_nbs
 
-#Combine plots 
+#Combine nbs conditional effects plots 
 (sizeplot_nbs + dayplot_nbs) / (cpueplot_nbs + tempplot_nbs) + 
   plot_annotation(tag_levels = 'a', title = "Northern Bering Sea Snow Crab",
                   theme = theme(plot.title = element_text(hjust = 0.5))) -> plot
@@ -601,14 +575,14 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(year), fill = 
   geom_ribbon(aes(ymin = lower_95, ymax = upper_95, fill = ordered(year)), alpha = .1, colour = NA) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90, fill = ordered(year)), alpha = .3, colour = NA) +
   geom_line(aes(color = ordered(year)), size=1) +
-  geom_rug(data = nbs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), 
-           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
+  #geom_rug(data = nbs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), 
+           #colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
   theme_minimal() +
-  labs(x = "Temperature", y = "Energetic Condition") +
+  labs(x = "Bottom Temperature", y = "Energetic Condition") +
   theme(legend.position="bottom") +
   theme(legend.title=element_blank()) +
   scale_fill_manual(values = my_colors) +
-  scale_color_manual(values = my_colors) -> temp_nbs
+  scale_color_manual(values = my_colors) -> temp_ixn_nbs
 
 #density*year
 conditions <- data.frame(year = c(2019, 2021, 2022, 2023))
@@ -633,18 +607,18 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(year), fill = 
   geom_ribbon(aes(ymin = lower_95, ymax = upper_95, fill = ordered(year)), alpha = .1, colour = NA) +
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90, fill = ordered(year)), alpha = .3, colour = NA) +
   geom_line(aes(color = ordered(year)), size=1) +
-  geom_rug(data = nbs.dat, aes(x = fourth.root.cpue, y = Total_FA_Conc_WWT), 
-           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
+  #geom_rug(data = nbs.dat, aes(x = fourth.root.cpue, y = Total_FA_Conc_WWT), 
+           #colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") +  #raw data 
   theme_minimal() +
-  labs(x = "Snow Crab Density", y = "Energetic Condition") +
+  labs(x = "Snow Crab Density", y = "") +
   theme(legend.position="bottom") +
   theme(legend.title=element_blank()) +
   scale_fill_manual(values = my_colors) +
-  scale_color_manual(values = my_colors) -> cpue_nbs
+  scale_color_manual(values = my_colors) -> cpue_inx_nbs
 
 #Combine NBS plots 
-(cpue_nbs + temp_nbs) + plot_annotation(tag_levels = list(c("c","d")), title = "Northern Bering Sea Snow Crab",
-                                theme = theme(plot.title = element_text(hjust = 0.5))) +
+(temp_ixn_nbs + cpue_inx_nbs) + plot_annotation(tag_levels = list(c("c","d")), title = "Northern Bering Sea",
+                                theme = theme(plot.title = element_text(hjust = 0.5, color="grey40"))) +
   plot_layout(guides = "collect") & theme(legend.position = 'bottom') -> nbs
 
 #Combine with EBS plots in "EBS drivers models.R" script 

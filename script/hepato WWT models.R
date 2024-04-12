@@ -54,7 +54,7 @@ condition_master %>%
   ggplot() +
   geom_histogram(aes(Total_FA_Conc_DWT))
 
-#% Plot: DWT vrs total FA
+#% Plot: DWT vrs total FA - faceted 
 new.dat %>%
   ggplot(aes(Perc_DWT, Total_FA_Conc_DWT)) +
   geom_point() +
@@ -63,7 +63,7 @@ new.dat %>%
   labs(x= "% DWT in Hepatopancreas", y = "Total FA (mg/g DWT)") +
   facet_wrap(~year)
 
-#% Plot: DWT vrs total FA concentration - no 2019
+#% Plot: DWT vrs total FA concentration 
 new.dat %>%
   ggplot(aes(Perc_DWT, Total_FA_Conc_DWT)) +
   geom_point(aes(color=factor(year))) +
@@ -72,7 +72,6 @@ new.dat %>%
   labs(x= "% DWT in Hepatopancreas", y = "Total FA per DWT (mg FA/g WWT)") +
   theme(legend.title=element_blank()) +
   scale_colour_manual(values=cbPalette)
-#facet_wrap(~lme)
 
 ############################
 #Bayesian regression model (FA ~ %DWT)
@@ -88,7 +87,7 @@ saveRDS(condition_1, file = "./output/condition_1.rds")
 condition_1 <- readRDS("./output/condition_1.rds")
 
 summary(condition_1)
-bayes_R2(condition_1)
+bayes_R2(condition_1) #.67
 posterior_summary(condition_1)
 pairs(condition_1)
 loo_c1 <- loo(condition_1)
@@ -111,54 +110,21 @@ new.dat %>%
              # slope     = fixef(condition_1)[2],
              # size = .8, color = "black") +
   geom_smooth(data = mu, aes(y=Estimate, ymin= Q2.5, ymax= Q97.5), 
-              stat = "identity", fill = "lightgrey", color = "black", alpha = 0.5) +
-  geom_point(aes(color=as.factor(year)), size = 2) +
+              stat = "identity", fill = "grey70", color = "black", alpha = 0.5) +
+  geom_point(aes(color=as.factor(year)), size = 1) +
   theme(panel.grid = element_blank()) +
   theme_minimal() + 
   labs(x= "% DWT in Hepatopancreas", y = "Total FA per DWT (mg FA/g DWT)") +
   theme(legend.title=element_blank()) +
   scale_colour_manual(values=my_colors) +
   coord_cartesian(xlim = range(new.dat$Perc_DWT),
-                  ylim = c(0,775)) 
-ggsave("./figures/Fig2.png")
+                  ylim = c(0,775)) +
+  #make legend points bigger
+  guides(colour = guide_legend(override.aes = list(size=4)))
+ggsave("./figures/Fig2.png", height = 4, width = 5, units = "in", dpi = 300)
 
 
 ############################
-# Linear regression (FA ~ %DWT) 
-mod1 <- lm(Total_FA_Conc_DWT~Perc_DWT, data=new.dat) 
-summary(mod1)
-plot(mod1)
-
-#Let's remove some influential outliers 
-
-plot(cooks.distance(mod1), pch="*", cex=2, main="Influential Obs by Cook's distance") 
-abline(h = 4/(nrow(new.dat)), col="red")  # add cutoff line (critical Cooks D > 4/n)
-
-cooksD <- cooks.distance(mod1)
-influential <- cooksD[(cooksD > (3 * mean(cooksD, na.rm = TRUE)))]
-influential #46 points with Cook's Distance greater than 3x the mean, mostly in 2021
-
-names_of_influential <- names(influential)
-outliers <- new.dat[names_of_influential,]
-dat_without_outliers <- new.dat %>% anti_join(outliers)
-
-#Re-fit model with outliers removed 
-mod2 <- lm(Total_FA_Conc_DWT~Perc_DWT, data=dat_without_outliers) 
-plot(mod2)
-summary(mod2)
-
-#And now let's quickly assess relationship by year and region
-dat_without_outliers %>%
-  filter(year == 2021) %>%
-  lm(Total_FA_Conc_DWT~Perc_DWT, data = .) %>%
-  glance()
-
-dat_without_outliers %>%
-  filter(lme == "NBS") %>%
-  lm(Total_FA_Conc_DWT~Perc_DWT, data = .) %>%
-  glance()
-
-#####################################
 #Morphometric condition metrics
 
 #Crab weight at size vrs % DWT by sex
