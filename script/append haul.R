@@ -73,14 +73,21 @@ ebs_haul %>%
   mutate(year = as.numeric(str_extract(cruise, "\\d{4}")))  ->  snow_cpue
 
 #Add in benthic invert CPUE data for each station (model covariate- prey quantity)
-  #Pulling from a different script, which generates the CPUE estimates
+#Pulling from a different script, which generates the CPUE estimates
 
 source("./script/benthic_invert.R")
 
-#join
 benthic_cpue %>%
   select(cruise,year,gis_station,total_benthic_cpue) %>% 
-  right_join(snow_cpue) -> snow_cpue_final
+  right_join(snow_cpue) -> snow_invert_cpue
+
+#Add in sampling regions associated with each station
+#read in lookup table
+regions <- read.csv("./data/regions_lookup.csv")
+
+#join
+snow_invert_cpue %>%
+  left_join(regions, by="gis_station") -> snow_cpue_final
 
 ##################################################
 #Joining Lipid Lab 1/4/24 FA data (2019-2023)
