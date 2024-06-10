@@ -72,11 +72,12 @@ One master datasets has been produced for further modeling via the "append haul"
  | `bottom_depth`    |    Bottom depth at station for AFSC standardized surveys  | numeric, in m
 |  `gear_temperature`   |    Bottom temperature at sampling station | degree C
  | `start_date`     |        Date of sampling | date, month/day/year
+ | `sample_region`     |        Pre-defined spatial sampling strata for EBS and NBS bottom trawl survey hepatopancreas collections | numeric
+|  `lme` |   Large marine ecosystem: EBS=eastern Bering Sea, NBS=northern Bering Sea   |  text
 |  `DWT_WWT` |   hepatopancreas dry weight/hepatopancreas wet weight   |  numeric, in g
 |  `Perc_DWT` |   hepatopancreas dry weight/ hepatopancreas wet weight x 100; percentage hepatopancreas dry weight    |  percentage
 |  `Total_FA_Conc_DWT` |   total fatty acid dry weight concentration of hepatopancreas sample   |  mg FA/ g DWT
 |  `WWT_DWT` |   hepatopancreas wet weight/dry weight    |  numeric, in g
-|  `lme` |   Large marine ecosystem: EBS=eastern Bering Sea, NBS=northern Bering Sea   |  text
 
 :::
 
