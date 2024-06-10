@@ -59,18 +59,6 @@ condition_master %>%
   theme_bw() +
   labs(x= "", y = "Sample size")
 
-# Sample sizes by region 
-condition_master %>%
-  group_by(year,sample_region, lme) %>%
-  count() %>%
-  filter(lme != "NA") %>% #one crab collected outside the sampling design
-  ggplot() +
-  geom_bar(aes(x=as.factor(sample_region), y= n), stat='identity') +
-  facet_grid(lme~year) +
-  theme_bw() +
-  labs(x= "Sampling Region", y = "Sample size")
-ggsave("./figures/data exploration/n_bsierpregion.png", dpi=300)
-
 #Sample sizes by maturity
 condition_master %>%
   filter(maturity != "NA") %>%
@@ -203,15 +191,6 @@ new.dat %>%
   theme(axis.text.x = element_text(size = 11)) +
   facet_wrap(~lme, labeller = lme_names)
   
-#FA by region and year
-new.dat %>%
-  ggplot(aes(factor(bsierp_region), Total_FA_Conc_WWT)) +
-  geom_boxplot() +
-  facet_wrap(~year) +
-  theme_bw() +
-  labs(x= "", y = "Total FA per WWT (mg FA/g WWT)")
-ggsave("./figures/data exploration/DWT_bsierpregion.png", dpi=300)
-
 #FA by lme, year and sex
 new.dat %>%
   ggplot(aes(factor(sex), Total_FA_Conc_WWT)) +

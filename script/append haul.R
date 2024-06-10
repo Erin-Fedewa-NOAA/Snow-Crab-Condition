@@ -77,24 +77,10 @@ ebs_haul %>%
 
 source("./script/benthic_invert.R")
 
+#join
 benthic_cpue %>%
   select(cruise,year,gis_station,total_benthic_cpue) %>% 
-  right_join(snow_cpue) -> snow_invert_cpue
-
-#Add in BSIERP and sampling regions associated with each station
-  #read in lookup table
-regions <- read.csv("./data/regions_lookup.csv")
-  #join
-snow_invert_cpue %>%
-  left_join(regions, by="gis_station") -> snow_cpue_area
-
-#And lastly, add in Nielson et al spring bloom type index
-bloom <- read.csv("./data/final_perc_open_water_2019_2023.csv")
-
-bloom %>%
-  rename(bsierp_region=bsregion, year=Year) %>%
-  select(year, bsierp_region,perc_open_water) %>%
-  right_join(snow_cpue_area, by=c("bsierp_region", "year")) -> snow_cpue_final
+  right_join(snow_cpue) -> snow_cpue_final
 
 ##################################################
 #Joining Lipid Lab 1/4/24 FA data (2019-2023)
@@ -109,16 +95,6 @@ lipid %>%
   mutate(vial_id = gsub(".","-",id, fixed = TRUE)) %>%
   select(-id, -Total_FA_Conc_DWT) %>% #We'll calculate total FA per DWT in the script below
   mutate(year = as.numeric(year)) -> lipid.dat
-
-#Create FA Biomarker Master by joining to haul data
-lipid.dat %>%
-  full_join(snow_cpue_final, by=c("vial_id","year")) %>%
-  #calculate additional WWT:DWT/FA metrics
-  mutate(DWT_WWT = hepato_dwt/hepato_wwt,
-         Perc_DWT = DWT_WWT*100,
-         Total_FA_Conc_DWT = as.numeric(Total_FA_Conc_WWT)/DWT_WWT,
-         WWT_DWT = hepato_wwt/hepato_dwt) %>%
-  write_csv(file="./data/FA_biomarker_master.csv")
 
 #Create Total FA Master by joining to haul data (just excluding biomarker data)
 lipid.dat %>%
