@@ -10,8 +10,6 @@ Bayesian regression models were fit with Stan version 2.32.3, R version 4.3.0, a
 
 # METADATA:
 
-================================================
-
 Bibliographic
 -------------
 
