@@ -9,6 +9,7 @@ Bayesian regression models were fit with Stan version 2.32.3, R version 4.3.0, a
  3) Investigate the relative importance of bottom temperature and snow crab density on energetic condition of juvenile snow crab
 
 # METADATA:
+
 ================================================
 Bibliographic
 -------------
