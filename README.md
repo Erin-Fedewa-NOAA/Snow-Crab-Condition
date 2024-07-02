@@ -1,6 +1,8 @@
 # Snow-Crab-Condition
 Data and analyses for NPRB funded project #1911 "Bering Sea snow crab lipid condition metrics in relation to temperature and recruitment dynamics". This dataset includes immature snow crab sampled for hepatopancreas on 2019, 2021, 2022 and 2023 EBS and NBS NOAA bottom trawl surveys. Total fatty acid concentrations estimated from hepatopancreas samples were used to explore spatiotemporal variation in energetic condition in relation to temperature and snow crab density. 
 
+Bayesian regression models were fit with Stan version 2.32.3, R version 4.3.0, and the rstan and brms R packages (Bürkner, 2017; R Core Team, 2023; Stan Development Team, 2024)
+
 # Project Objectives:
  1) Evaluate the performance of an indirect metric (hepatopancreas water content) in accurately estimating energetic condition of juvenile snow crab
  2) Assess spatial and temporal variation in energetic condition mid- and post-collapse
@@ -8,7 +10,6 @@ Data and analyses for NPRB funded project #1911 "Bering Sea snow crab lipid cond
 
 # METADATA:
 ================================================
-
 Bibliographic
 -------------
 
