@@ -6,7 +6,8 @@
 #4) Append station-level benthic invert densities
 #5) Join haul data with fatty acid data 
 
-#Follow ups: Change chela NBS vrs EBS script section to recognize 01 vrs 02 string 
+#Follow ups: Change chela NBS vrs EBS script section to recognize 01 vrs 02 string
+#2024 run: add male "0" maturity category to casewhen statement 
  
 # Author: EJF
 
