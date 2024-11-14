@@ -1,4 +1,4 @@
-#GOALS: 
+#Data prep and wrangling script:  
 # 1) Append haul data to snow crab biometrics datasheet
 #2) Add a column for maturity using clutch codes/chela heights
     #Distribution based cutlines for males published in 2019 tech memo
@@ -6,9 +6,6 @@
 #4) Append station-level benthic invert densities
 #5) Join haul data with fatty acid data 
 
-#Follow ups: Change chela NBS vrs EBS script section to recognize 01 vrs 02 string
-#2024 run: add male "0" maturity category to casewhen statement 
- 
 # Author: EJF
 
 # load ----

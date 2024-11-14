@@ -1,4 +1,4 @@
-# notes ----
+# Goals:
 #Summarize station-level benthic invert mean CPUE to append to snow crab condition datasets
   #to use as a covariate for modeling 
 

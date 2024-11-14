@@ -1,5 +1,5 @@
-#Change in CPUE plot (2018 vrs 2021)
-  #Plot for AMSS talk 
+#Change in station-level mean snow crab CPUE plot (2018 vrs 2021)
+  #Plot created for AMSS talk 
 
 # load ----
 library(tidyverse)
@@ -24,7 +24,7 @@ ebs_haul %>%
 
 #calculate % change in CPUE
 dat %>%
-  pivot_wider(names_from = year, values_from = cpue) -> dat2
+  pivot_wider(names_from = year, values_from = cpue) %>%
   mutate(perc_change_cpue = (((`2021` - `2018`)/`2018`)*100)) %>%
   mutate_if(is.numeric, ~ replace_na(., 0) %>% 
               replace(., is.infinite(.), 100)) %>%
@@ -52,6 +52,7 @@ can <- raster::getData("GADM", country = c("CAN"), level = 1, path = "./data")
 
 #plot % change in cpue
 plot %>% 
+  filter(cpue > 1) %>%
   ggplot() + 
   geom_polygon(data = usa, aes(x = long, y = lat, group=group))+
   geom_point(aes(x = mid_longitude, y = mid_latitude, color=as.numeric(cpue), size=as.numeric(cpue)))+
@@ -60,10 +61,10 @@ plot %>%
   facet_wrap(~year) +
   xlab("") + ylab("") + 
   scale_color_continuous(name = "Snow Crab Density", labels = comma,
-    limits=c(0, 2850000), breaks=seq(0, 2850000, by=570000)) +
+    limits=c(1, 2850000), breaks=seq(1, 2850000, by=570000)) +
   guides(color= guide_legend(), size=guide_legend()) +
   scale_size_continuous(name = "Snow Crab Density", labels = comma,
-      limits=c(0, 2850000), breaks=seq(0, 2850000, by=570000))
+      limits=c(1, 2850000), breaks=seq(1, 2850000, by=570000))
 ggsave("./figures/data exploration/cpue.png", dpi=300)
 
 

@@ -1,4 +1,4 @@
-#Goals
+#Exploratory Script: 
   # Develop indices of abundance for recruits (newshell mature males and females)
   #Calculate annual means for snow crab condition
   #Assess relationship between recruitment and condition the year prior
