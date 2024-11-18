@@ -38,6 +38,9 @@ library(akgfmaps)
 library(ggridges)
 library(patchwork)
 library(hrbrthemes)
+library(ggtext)
+library(ggpubr)
+
 
 #install.packages("remotes")
 #remotes::install_github("afsc-gap-products/akgfmaps")
@@ -68,10 +71,10 @@ survey_strata <- terra::vect(survey_gdb, layer = "EBS.NBS_surveyarea")
 ## LOAD CONDITION AND SURVEY DATA ---------------------------------------------
 
 condition_master <- read.csv("./data/total_FA_master.csv")
-ebs_haul <- read.csv("./data/haul_opilio.csv")
-nbs_haul <- read.csv("./data/haul_opilio_nbs.csv")
-ebs_strata <- read.csv("./data/strata_opilio.csv")
-nbs_strata <- read.csv("./data/strata_opilio_nbs.csv")
+ebs_haul <- read.csv("./data/crabhaul_opilio.csv")
+nbs_haul <- read.csv("./data/crabhaul_opilio_nbs.csv")
+ebs_strata <- read.csv("./data/crabstrata_opilio.csv")
+nbs_strata <- read.csv("./data/crabstrata_opilio_nbs.csv")
 
 ## LOAD ALASKA REGION LAYERS (FROM AKGFMAPS) -----------------------------------
 
@@ -145,7 +148,7 @@ ggplot() +
 #add ice extent
   geom_sf(data=ice_extent , aes(), color = "#9ECAE1", alpha = 0.25 ) +
 #add crab sampling
-  geom_sf(data=crab_dat, aes(size = n_crab), color = "black") +
+  geom_sf(data=crab_dat, aes(size = n_crab), color = "grey30") +
   scale_x_continuous(limits = ebs_layers$plot.boundary$x,
                      breaks = ebs_layers$lon.breaks) +
   scale_y_continuous(limits = ebs_layers$plot.boundary$y,
@@ -153,21 +156,129 @@ ggplot() +
   scale_size_continuous(range = c(1,4)) +
   theme_bw() +
   labs(x="", y="", size = expression(paste("Snow crab \n samples"))) +
-  facet_wrap(~year)
+  theme(legend.position = "bottom") +
+  facet_wrap(~year) -> map
 
 ### PANEL B ------------------------------------------------------------------
-  #EBS and NBS abundance timeseries 
+#EBS and NBS abundance timeseries 
 
+#calculate EBS abundance timeseries 
+ebs_haul %>%
+  mutate(YEAR = as.numeric(str_extract(CRUISE, "\\d{4}"))) %>%
+  filter(HAUL_TYPE == 3,
+         YEAR >= 1988) %>%
+  group_by(YEAR, GIS_STATION, AREA_SWEPT) %>%
+  summarise(ncrab = sum(SAMPLING_FACTOR, na.rm = T)) %>%
+  ungroup %>%
+  # compute cpue per nmi2
+  mutate(cpue_cnt = ncrab / AREA_SWEPT) %>%
+  # join to hauls that didn't catch crab 
+  right_join(ebs_haul %>% 
+               mutate(YEAR = as.numeric(str_extract(CRUISE, "\\d{4}"))) %>%
+               filter(HAUL_TYPE ==3,
+                      YEAR >= 1988) %>%
+               distinct(YEAR, GIS_STATION, AREA_SWEPT)) %>%
+  replace_na(list(cpue_cnt = 0)) %>%
+  replace_na(list(ncrab = 0)) %>%
+  
+  #join to stratum
+  left_join(ebs_strata %>%
+              select(STATION_ID, SURVEY_YEAR, STRATUM, TOTAL_AREA) %>%
+              filter(SURVEY_YEAR >= 1988) %>%
+              rename_all(~c("GIS_STATION", "YEAR",
+                            "STRATUM", "TOTAL_AREA"))) %>%
+  #Scale to abundance by strata
+  group_by(YEAR, STRATUM, TOTAL_AREA) %>%
+  summarise(MEAN_CPUE = mean(cpue_cnt , na.rm = T),
+            N_CPUE = n(),
+            VAR_CPUE = (var(cpue_cnt)*(TOTAL_AREA^2))/N_CPUE,
+            ABUNDANCE = (MEAN_CPUE * mean(TOTAL_AREA))) %>%
+  distinct() %>%
+  group_by(YEAR) %>%
+  #Sum across strata
+  summarise(ABUNDANCE_MIL = sum(ABUNDANCE)/1e6,
+            SD_CPUE = sqrt(sum(VAR_CPUE)),
+            ABUNDANCE_CI = (1.96*(SD_CPUE))/1e6) %>%
+  mutate(lme = rep("Eastern Bering Sea")) -> ebs_abundance
 
+#----------------------
+#calculate NBS abundance timeseries 
+nbs_haul %>%
+  mutate(YEAR = as.numeric(str_extract(CRUISE, "\\d{4}"))) %>%
+  filter(YEAR >= 1988) %>%
+  group_by(YEAR, GIS_STATION, AREA_SWEPT) %>%
+  summarise(ncrab = sum(SAMPLING_FACTOR, na.rm = T)) %>%
+  ungroup %>%
+  # compute cpue per nmi2
+  mutate(cpue_cnt = ncrab / AREA_SWEPT) %>%
+  # join to hauls that didn't catch crab 
+  right_join(nbs_haul %>% 
+               mutate(YEAR = as.numeric(str_extract(CRUISE, "\\d{4}"))) %>%
+               filter(YEAR >= 1988) %>%
+               distinct(YEAR, GIS_STATION, AREA_SWEPT)) %>%
+  replace_na(list(cpue_cnt = 0)) %>%
+  replace_na(list(ncrab = 0)) %>%
+  
+  #join to stratum
+  left_join(nbs_strata %>%
+              select(GIS_STATION, SURVEY_YEAR, STRATUM, TOTAL_AREA) %>%
+              filter(SURVEY_YEAR >= 1988) %>%
+              rename_all(~c("GIS_STATION", "YEAR",
+                            "STRATUM", "TOTAL_AREA"))) %>%
+  #Scale to abundance by strata
+  group_by(YEAR, STRATUM, TOTAL_AREA) %>%
+  summarise(MEAN_CPUE = mean(cpue_cnt , na.rm = T),
+            N_CPUE = n(),
+            VAR_CPUE = (var(cpue_cnt)*(TOTAL_AREA^2))/N_CPUE,
+            ABUNDANCE = (MEAN_CPUE * mean(TOTAL_AREA))) %>%
+  distinct() %>%
+  filter(STRATUM != "NA") %>% #NAs are issues documented in 11/17 SAP email! 
+  group_by(YEAR) %>%
+  #Sum across strata
+  summarise(ABUNDANCE_MIL = sum(ABUNDANCE)/1e6,
+            SD_CPUE = sqrt(sum(VAR_CPUE)),
+            ABUNDANCE_CI = (1.96*(SD_CPUE))/1e6) %>%
+  mutate(lme = rep("Northern Bering Sea")) -> nbs_abundance
 
+#Combine EBS and NBS datasets
+ebs_abundance %>%
+  bind_rows(nbs_abundance) -> plot_abun
 
+#Plot with lines
+plot_abun %>%
+  filter (YEAR >= 1995) %>%
+ggplot() +
+  #geom_point(data = subset(plot_abun, lme == "Eastern Bering Sea"), 
+             #aes(y=ABUNDANCE_MIL, x=YEAR, color = lme), size = 2) +
+  geom_line(data = subset(plot_abun, lme == "Eastern Bering Sea"), 
+            aes(y=ABUNDANCE_MIL, x=YEAR, color = lme), size = 1, alpha = 7) +
+  geom_ribbon(data = subset(plot_abun, lme == "Eastern Bering Sea"),
+                aes(ymin = ABUNDANCE_MIL - ABUNDANCE_CI, 
+                    ymax = ABUNDANCE_MIL + ABUNDANCE_CI, x=YEAR),
+              fill = "#9ECAE1", alpha = 0.2) +
+  geom_point(data = subset(plot_abun, lme == "Northern Bering Sea"), 
+             aes(y=ABUNDANCE_MIL, x=YEAR, color = lme), size = 1.5) +
+  geom_errorbar(data = subset(plot_abun, lme == "Northern Bering Sea"),
+              aes(ymin = ABUNDANCE_MIL - ABUNDANCE_CI, 
+                  ymax = ABUNDANCE_MIL + ABUNDANCE_CI, x=YEAR),
+              color = "#74C476", alpha = .7) +
+  scale_color_manual(values = c("#4292C6", "#41AB5D")) +
+  theme_bw() +
+  labs(y="Snow Crab \nAbundance (millions)", x="") +
+  theme(legend.position="top") +
+  theme(axis.title.y = element_text(size=10, color = "grey30")) +
+  theme(legend.title=element_blank()) +
+  guides(color = guide_legend(override.aes = list(size=2.5, shape=19))) -> abun_plot
+  
 
-
-
-
-
-
-
+#Stacked bar plot
+plot_abun %>%
+  filter (YEAR >= 1992) %>%
+  ggplot(aes(fill=lme, y=ABUNDANCE_MIL, x=YEAR)) + 
+  geom_col(position = position_dodge(preserve = 'single')) +
+  theme_bw() +
+  scale_fill_manual(values = c("#4292C6", "#084594")) +
+  labs(y="Snow Crab Abundance (millions)", x="")
 
 ### PANELS C AND D -----------------------------------------------------------
 #Barplots of annual mean cpue and temp for EBS and NBS
@@ -190,7 +301,7 @@ ggplot(cpue.dat, aes(year, mean_cpue)) +
   geom_col(aes(fill = ordered(year)), size=3) +
   geom_errorbar(aes(year, ymin=mean_cpue - se_cpue, ymax=mean_cpue + se_cpue), 
                 width=0.3, size=0.5, color = "grey40") +
-  ylab("Mean Snow Crab Density") + xlab("") +
+  labs(y = "Mean Snow Crab<br>Density (num/nmi<sup> 2</sup>)", x= "") +
   scale_fill_manual(values=my_colors) +
   facet_wrap(~lme, scales = "free_y") +
   geom_vline(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
@@ -198,10 +309,12 @@ ggplot(cpue.dat, aes(year, mean_cpue)) +
             size = 2, color = "#D55E00") +
   geom_text(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(x = 3, y=155, label = "Post-collapse"),
             size = 2, color = "#0072B2") +
-  theme_ipsum(axis_title_just = "cc", axis_title_size = 12, axis_text_size =10) +
+  theme_ipsum(axis_title_size = 12, axis_text_size =10) +
   theme(legend.position="none") +
-  theme(strip.text = element_text(colour = "grey40", hjust = .5)) +
-  theme(panel.grid.major.x = element_blank()) -> mean_cpue_plot
+  theme(axis.title.y=element_text(colour="grey30", size = 11)) +
+  theme(strip.text = element_text(hjust = .5)) +
+  theme(axis.title.y = element_textbox_simple(orientation = "left-rotated", halign = 0.5)) +
+  theme(panel.grid.major.x = element_blank())  -> mean_cpue_plot
 
 #temperature data wrangling
 condition_master %>%
@@ -222,7 +335,7 @@ ggplot(temp.dat, aes(year, mean_temp)) +
   geom_errorbar(aes(year, ymin = ifelse(mean_temp - se_temp < 0, 0, mean_temp - se_temp), 
                     ymax=mean_temp + se_temp),
                 width=0.3, size=0.5, color = "grey40") +
-  ylab("Mean Bottom Temperature") + xlab("") +
+  labs(y = expression("Mean Bottom \nTemperature " ( degree~C)), x = "") +
   scale_fill_manual(values=my_colors) +
   facet_wrap(~lme) +
   geom_vline(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
@@ -232,20 +345,26 @@ ggplot(temp.dat, aes(year, mean_temp)) +
             size = 2, color = "#0072B2") +
   theme_ipsum(axis_title_just = "cc", axis_title_size = 12, axis_text_size =10) +
   theme(legend.position="none") +
-  theme(strip.text = element_text(colour = "grey40", hjust = .5)) +
+  theme(axis.title.y=element_text(colour="grey30", hjust = 0.5, size = 11)) +
+  theme(strip.text = element_text(hjust = .5)) +
   theme(panel.grid.major.x = element_blank())  -> mean_temp_plot
 
 ### COMBINE PANELS AND SAVE FIGURE --------------------------------------------
 
-#Figure 1 for ms: combined map, temp and cpue plot
-mean_cpue_plot / plot_spacer() / mean_temp_plot  + plot_layout(heights = c(6, -3 , 6)) +
-  plot_annotation(tag_levels = list(c('b', 'c'))) -> b_c_plot
+#Figure 1 for ms: combined abun, map, temp and cpue plot
 
-map + plot_annotation(tag_levels = 'a') & 
-  theme(plot.tag.position  = c(.1, .95)) -> a_plot
+abun_plot + plot_annotation(tag_levels = 'a') & 
+  theme(plot.tag.position  = c(.05, .95))
+ggsave("./figures/Fig1a.png", height=2.5 , width=4, units="in")
 
-ggarrange(a_plot, b_c_plot, ncol=2, nrow=1)
-ggsave("./figures/Fig1.png", height=8 , width=8, units="in")
+map + plot_annotation(tag_levels = list('b')) & 
+  theme(plot.tag.position  = c(.1, 1)) 
+ggsave("./figures/Fig1b.png", height=6 , width=6, units="in")
+
+mean_cpue_plot / plot_spacer() / mean_temp_plot  + plot_layout(heights = c(6, -4 , 6)) +
+  plot_annotation(tag_levels = list(c('c', 'd'))) 
+ggsave("./figures/Fig1cd.png", height=6 , width=6, units="in")
+
 
 -----------------------------------------------------------------------------
 #Bonus Figs: And now pdfs by year
@@ -291,7 +410,22 @@ condition_master  %>%
   theme(legend.title=element_blank()) 
 
 
+condition_master %>%
+     group_by(year, lme) %>%
+  summarise(mean_cpue = mean(cpue), 
+            mean_temp = mean(gear_temperature)) %>%
+  ggplot( ) +
+    geom_point(aes(mean_cpue, mean_temp, color = lme)) +
+  geom_line(aes(mean_cpue, mean_temp, color = lme)) +
+  geom_text(label = year)
 
+condition_master %>%
+  mutate(fourth.root.cpue = as.numeric(cpue^0.25)) %>%
+  ggplot( ) +
+  geom_point(aes(fourth.root.cpue, gear_temperature, color = lme)) +
+  geom_line(aes(fourth.root.cpue, gear_temperature, color = lme)) +
+  geom_text(label = year)
+  
 
 
 

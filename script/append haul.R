@@ -36,9 +36,9 @@ bio_dat %>%
 
 #############
 #Append EBS & NBS haul data 
-ebs_haul <- read.csv("./data/haul_opilio.csv")
+ebs_haul <- read.csv("./data/crabhaul_opilio.csv")
   unique(ebs_haul$CRUISE) 
-nbs_haul <- read.csv("./data/haul_opilio_nbs.csv")
+nbs_haul <- read.csv("./data/crabhaul_opilio_nbs.csv")
   unique(nbs_haul$CRUISE)
 
 #Combine ebs and nbs haul files 

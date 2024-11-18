@@ -1,4 +1,4 @@
-#Goal: Assess the relationship b/w total fatty acid concentration and indirect proxies for condition
+#Objective 1: Assess the relationship b/w total fatty acid concentration and hepato WWT:DWT
 
 #NOTE: We're removing 2019 from validation models b/c methods differed (i.e. hepatos were dissected
   #in the lab after freezing whole crab, and likely affects WWT:DWT ratio due to water loss)
@@ -32,7 +32,7 @@ source("./script/stan_utils.R")
 condition_master <- read.csv("./data/total_FA_master.csv")
 
 #plotting
-my_colors <- RColorBrewer::brewer.pal(7, "GnBu")[c(3,5,7)]
+my_colors <- RColorBrewer::brewer.pal(7, "GnBu")[c(3,5,6, 7)]
 cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00")
 
 ####################################
@@ -76,7 +76,7 @@ new.dat %>%
 ############################
 #Bayesian regression model (FA ~ %DWT)
 condition_1 <- brm(data = new.dat,
-            family = student, #Student's t distribution- more robust to outliers
+            family = gaussian(), #Student's t distribution- more robust to outliers
             Total_FA_Conc_DWT ~ 1 + Perc_DWT,
             seed=1,
             save_pars = save_pars(all = TRUE),
@@ -87,7 +87,7 @@ saveRDS(condition_1, file = "./output/condition_1.rds")
 condition_1 <- readRDS("./output/condition_1.rds")
 
 summary(condition_1)
-bayes_R2(condition_1) #.67
+bayes_R2(condition_1) #.65
 posterior_summary(condition_1)
 pairs(condition_1)
 loo_c1 <- loo(condition_1)
@@ -105,11 +105,11 @@ mu <- fitted(condition_1, newdata = dwt_seq) %>%
 
 #Plot model fit - Fig 2 for Manuscript 
 new.dat %>%
-  ggplot(aes(x = Perc_DWT, y = Total_FA_Conc_DWT)) +
+  ggplot(aes(x = Perc_DWT, y = Total_FA_Conc_DWT, color=year)) +
   #geom_abline(intercept = fixef(condition_1)[1], 
              # slope     = fixef(condition_1)[2],
              # size = .8, color = "black") +
-  geom_smooth(data = mu, aes(y=Estimate, ymin= Q2.5, ymax= Q97.5), 
+  geom_smooth(data = mu, aes(y=Estimate, ymin= Q2.5, ymax= Q97.5, color=year), 
               stat = "identity", fill = "grey70", color = "black", alpha = 0.5) +
   geom_point(aes(color=as.factor(year)), size = 1) +
   theme(panel.grid = element_blank()) +

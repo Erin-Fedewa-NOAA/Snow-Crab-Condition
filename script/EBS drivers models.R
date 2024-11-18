@@ -1,4 +1,4 @@
-#Investigate drivers of condition in EBS snow crab using Bayesian multivariate models
+#Objective 3: Investigate drivers of condition in EBS snow crab using Bayesian multivariate models
   #a) Population-level effects of temperature and snow crab density across years
   #b) Conditional effects of temperature and density within years 
 
@@ -1028,11 +1028,87 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   scale_color_manual(values = my_colors) +
   facet_wrap(~year)
 
+####################################
+#EXPLORATION: Fit a linear interaction between cpue and temp, compare to s(temp) + s(cpue) model
+  #to look at overall effects of density and temp 
+
+test_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
+                      temperature * fourth.root.cpue +
+                      (1 | region))  
+
+test <- brm(test_formula,
+            data = ebs.dat,
+            family = gaussian,
+            cores = 4, chains = 4, iter = 2500, warmup = 1000,
+            save_pars = save_pars(all = TRUE),
+            control = list(adapt_delta = 0.999, max_treedepth = 14))
+
+#Save output
+saveRDS(test, file = "./output/test.rds")
+test <- readRDS("./output/test.rds")
+
+plot(conditional_effects(test), ask = FALSE)
+summary(test) 
+
+bayes_R2(test) #R2 = 0.30
+loo(test) -> d
+plot(d)
+
+# model comparison
+loo(mod5, test, moment_match = TRUE)
+
+######
+#Now let's run 3-way temp*density*year model and compare to s(temp, by= year) + s(cpue, by=year)
+  #to evaluate time varying effects of density and temperature 
+
+test2_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
+                      temperature*fourth.root.cpue*year +
+                      (1 | region))  
+
+test2 <- brm(test2_formula,
+            data = ebs.dat,
+            family = gaussian,
+            cores = 4, chains = 4, iter = 2500, warmup = 1000,
+            save_pars = save_pars(all = TRUE),
+            control = list(adapt_delta = 0.999, max_treedepth = 14))
+
+plot(conditional_effects(test2), ask = FALSE)
+summary(test) 
+
+bayes_R2(test) #R2 = 0.30
+loo(test) -> d
+plot(d)
+
+# model comparison
+loo(mod5, test, moment_match = TRUE)
 
 
 
+test_formula_nbs <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
+                      temperature * fourth.root.cpue +
+                      (1 | region))  
+
+test_nbs <- brm(test_formula_nbs,
+            data = nbs.dat,
+            family = gaussian,
+            cores = 4, chains = 4, iter = 2500, warmup = 1000,
+            save_pars = save_pars(all = TRUE),
+            control = list(adapt_delta = 0.999, max_treedepth = 14))
 
 
+#Save output
+saveRDS(test_nbs, file = "./output/test_nbs.rds")
+test_nbs <- readRDS("./output/test_nbs.rds")
+
+plot(conditional_effects(test_nbs), ask = FALSE)
+summary(test) 
+
+bayes_R2(test) #R2 = 0.30
+loo(test) -> d
+plot(d)
+
+# model comparison
+loo(nbs4, test_nbs, moment_match = TRUE)
 
 
 

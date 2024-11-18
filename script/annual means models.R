@@ -1,4 +1,4 @@
-#Predict condition for each year/region (EBS/NBS) after controlling for the effect of size due 
+#Estimate condition for each year/region (EBS/NBS) after controlling for the effect of size due 
   #to difference in ontogeny/sex, seasonality due to sampling design of survey, and spatial 
   #variation within the EBS/NBS (region group-level effect)
 
@@ -68,8 +68,8 @@ condition_master %>%
          region = as.factor(sample_region),
          station = as.factor(gis_station),
          temperature = as.numeric(gear_temperature),
-         fourth.root.cpue = as.numeric(cpue^0.25),
-         fourth.root.invert = as.numeric(total_benthic_cpue^0.25),
+         cpue = as.numeric(cpue),
+         invert = as.numeric(total_benthic_cpue),
          julian = as.numeric(julian)) -> ebs.dat 
 
 #data wrangling- NBS dataset  
@@ -84,8 +84,8 @@ condition_master %>%
          region = as.factor(sample_region),
          station = as.factor(gis_station),
          temperature = as.numeric(gear_temperature),
-         fourth.root.cpue = as.numeric(cpue^0.25),
-         fourth.root.invert = as.numeric(total_benthic_cpue^0.25),
+         cpue = as.numeric(cpue),
+         invert = as.numeric(total_benthic_cpue),
          julian = as.numeric(julian)) -> nbs.dat
 
 ################################################
@@ -233,23 +233,20 @@ year_ebs %>%
 ggplot(dat2, aes(year, estimate__,)) +
   geom_bar(aes(fill = ordered(year)), stat='identity', size=3) +
   geom_errorbar(aes(year, ymin=lower__, ymax=upper__), width=0.3, size=0.5, color = "grey60") +
-  ylab("Energetic Condition") + xlab("") +
+  ylab("Energetic Condition (Total FA per DWT)") + xlab("") +
+  
   scale_fill_manual(values=my_colors) +
   facet_wrap(~lme) +
-  #geom_vline(data = subset(dat2, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
-  #geom_text(data = subset(dat2, lme == "Eastern Bering Sea"), aes(x = 1, y=185, label = "Mid-collapse"),
-            #size = 2.4, color = "#D55E00") +
-  #geom_text(data = subset(dat2, lme == "Eastern Bering Sea"), aes(x = 3, y=185, label = "Post-collapse"),
-            #size = 2.4, color = "#0072B2") +
-  geom_vline(aes(xintercept = 1.5), linetype="dashed") +
-  geom_text(aes(x = 1, y=185, label = "Mid-collapse"),
-  size = 2.4, color = "#D55E00") +
-  geom_text(aes(x = 3, y=185, label = "Post-collapse"),
-  size = 2.4, color = "#0072B2") +
+  geom_vline(data = subset(dat2, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
+  geom_text(data = subset(dat2, lme == "Eastern Bering Sea"), aes(x = 1, y=185, label = "Mid-collapse"),
+            size = 2.5, color = "#D55E00") +
+  geom_text(data = subset(dat2, lme == "Eastern Bering Sea"), aes(x = 3, y=185, label = "Post-collapse"),
+            size = 2.5, color = "#084594") +
   theme_ipsum(axis_title_just = "cc", axis_title_size = 13, axis_text_size =11) +
   theme(legend.position="none") +
-  theme(panel.grid.major.x = element_blank()) 
-  
+  theme(panel.grid.major.x = element_blank()) + 
+  theme(axis.title.y = element_text(size = 12)) 
+
 ggsave("./figures/Fig3.png", dpi=300, width = 7, height = 5, units = "in")
 
 #Average marginal effect of year (difference across yrs while holding cw and julian day constant)
@@ -274,13 +271,4 @@ ggplot(years_ame_nbs,aes(x = .value, fill=ordered(year))) +
 #combine plots
 marg_ebs + marg_nbs + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
 ggsave("./figures/FigSupp.png", dpi=300, width = 6.5, height = 4.5, units = "in")
-
-
-
-
-
-
-
-
-
 
