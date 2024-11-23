@@ -103,7 +103,7 @@ mu <- fitted(condition_1, newdata = dwt_seq) %>%
   as_tibble() %>%
   bind_cols(dwt_seq)
 
-#Plot model fit - Fig 2 for Manuscript 
+#Plot model fit - Fig 5 for Manuscript 
 new.dat %>%
   ggplot(aes(x = Perc_DWT, y = Total_FA_Conc_DWT, color=year)) +
   #geom_abline(intercept = fixef(condition_1)[1], 
@@ -121,7 +121,7 @@ new.dat %>%
                   ylim = c(0,775)) +
   #make legend points bigger
   guides(colour = guide_legend(override.aes = list(size=4)))
-ggsave("./figures/Fig2.png", height = 4, width = 5, units = "in", dpi = 300)
+ggsave("./figures/Fig5.png", height = 4, width = 5, units = "in", dpi = 300)
 
 
 ############################

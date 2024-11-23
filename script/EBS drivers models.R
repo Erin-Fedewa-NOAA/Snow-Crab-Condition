@@ -1,6 +1,5 @@
-#Objective 3: Investigate drivers of condition in EBS snow crab using Bayesian multivariate models
-  #a) Population-level effects of temperature and snow crab density across years
-  #b) Conditional effects of temperature and density within years 
+#Objective 3: Investigate the effects of temperature and snow crab density on 
+  #energetic condition in EBS
 
 ##NOTE: WWT:DWT ratios appear to be affected by difference in sampling methods in 
   #2019. B/c total FA per WWT were not subject to the WWT:DWT discrepancy, it will be 
@@ -8,7 +7,9 @@
 
 # Author: EJF
 
-#install github version of brms with fix for truncated skew normal model runs
+#------------------------------------------------------------------
+
+#install development version of brms with fix for truncated skew normal model runs
 #if (!requireNamespace("remotes")) {
   #install.packages("remotes")
 #}
@@ -45,19 +46,24 @@ source("./script/stan_utils.R")
 condition_master <- read.csv("./data/total_FA_master.csv")
 
 #colors for plotting
-my_colors <- c("#D55E00","#9ECAE1", "#4292C6", "#084594")
+my_colors <- c("#084594", "#9ECAE1", "#FCAE91", "#D55E00", "#4292C6")
 my_colors2 <- c("#2A788EFF", "#E7B800", "#440154FF", "#22A884FF")
 
-################################
-#look at distributions of cpue covariates 
-condition_master %>%
-  ggplot() +
-  geom_histogram(aes(cpue))
+#functions
+pit <- function(y, yrep) {
+  n_draws <- nrow(yrep)
+  pit <- sapply(1:length(y),
+                \(n) {
+                  mean(y[n] > yrep[, n]) +
+                    # randomized PIT for discrete y (Czado, C., Gneiting, T.,
+                    # Held, L.: Predictive model assessment for count
+                    # data. Biometrics 65(4), 1254–1261 (2009).)
+                    sample(sum(y[n] == yrep[, n]), 1) / n_draws
+                })
+  pmax(pmin(pit, 1), 0)
+}
 
-condition_master %>%
-  ggplot() +
-  geom_histogram(aes(total_benthic_cpue))
-
+#-----------------------------------------------------------------------------
 #data wrangling- EBS dataset  
 condition_master %>%
   mutate(julian=yday(parse_date_time(start_date, "mdy", "US/Alaska"))) %>%  #add julian date 
@@ -70,8 +76,9 @@ condition_master %>%
          region = as.factor(sample_region),
          station = as.factor(gis_station),
          temperature = as.numeric(gear_temperature),
+         cpue = as.numeric(cpue),
          fourth.root.cpue = as.numeric(cpue^0.25),
-         fourth.root.invert = as.numeric(total_benthic_cpue^0.25),
+         invert = as.numeric(total_benthic_cpue),
          julian = as.numeric(julian)) -> ebs.dat 
 
 y_obs <- ebs.dat$Total_FA_Conc_WWT
@@ -80,14 +87,14 @@ y_obs <- ebs.dat$Total_FA_Conc_WWT
 ebs.dat %>%
   group_by(year, station) %>%
   summarise(temperature = mean(temperature),
-            fourth.root.cpue = mean(fourth.root.cpue), 
-            fourth.root.invert = mean(fourth.root.invert), 
+            cpue = mean(cpue), 
+            invert = mean(invert), 
             julian = mean(julian)) -> corr.dat
 
-cor(corr.dat[,3:6]) #All < 0.6
+cor(corr.dat[,3:6]) #Nothing too concerning
 corrplot(cor(corr.dat[,3:6]), method = 'number') 
 
-##########################################
+#------------------------------------------------------------------------------
 #Distribution of response variable - choosing a brms family 
 ebs.dat %>%
   ggplot(aes(Total_FA_Conc_WWT)) + 
@@ -179,27 +186,28 @@ loo_compare(loo_normal_trunc, loo_skew_trunc, loo_normal_log_jacobian, loo_skew_
 
 #Overall summary: The more flexible skew normal model continues to fit the data best, and 
   #visually, a truncated skew normal model appears like the best choice
-#HOWEVER, brms cannot yet compute posterior draws for truncated skew normal models yet
+#HOWEVER, brms cannot yet compute posterior draws for truncated skew normal models 
 #Results from models with more covariates and truncated Gaussian distribution appear robust to the 
   #two distributions, and ppc plots don't look terrible, so let's go with Gaussian 
-#############################################
+
+#---------------------------------------------------------------------------------------
 #EBS Models: 
 #Model runs not shown here, but group-level effects structure was explored. Due to the high number of stations
   #containing only 1 crab, 1|station and nested 1|region/station models had convergence issues. 
 #We'll go with 1|region to account for the repeat sampling design, and note that
   #we're not using 1|year/region b/c this confounds covariate effects with strong annual signals like temp! 
 
-####################################
-#Goal #1: Interpret population-level effects of temperature and snow crab density across years
+#---------------------------------------------------------------------------------------------
+#Interpret population-level effects of temperature and snow crab density across years
 
 #MODEL 1 BASE MODEL: default priors, truncated Gaussian, 
   #Covariates: crab size/julian day/random effect (all nuisance sampling design covariates)
    
-mod1_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
+ebs_base_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
                       (1 | region)) 
 
 ## Show default priors
-get_prior(mod5_formula, ebs.dat)
+get_prior(ebs_base_formula, ebs.dat)
 
 #informing priors- scaled based on the mean and standard deviation of x and y in the population
 sd_x <- sd(ebs.dat$temperature)
@@ -223,9 +231,9 @@ priors_set <- c(set_prior("student_t(3, 0, 96)", class = "b", coef = "stemperatu
                 set_prior("student_t(3, 0, 49.1)", class = "sigma"))
 
 #Weakly informative priors were tested, but don't improve pp checks or sensitivities,
-  #we'll stick with default priors
+  #we'll stick with default priors assuming we don't have prior data on this system
 
-mod1 <- brm(mod1_formula,
+ebs_base_mod <- brm(ebs_base_formula,
             data = ebs.dat,
             family = gaussian,
             #prior = priors_set,
@@ -234,31 +242,32 @@ mod1 <- brm(mod1_formula,
             control = list(adapt_delta = 0.999, max_treedepth = 14))
 
 #Save output
-saveRDS(mod1, file = "./output/mod1.rds")
-mod1 <- readRDS("./output/mod1.rds")
+saveRDS(ebs_base_mod, file = "./output/ebs_base_mod.rds")
+ebs_base_mod <- readRDS("./output/ebs_base_mod.rds")
 
 #MCMC convergence diagnostics 
-check_hmc_diagnostics(mod1$fit)
-neff_lowest(mod1$fit)
-rhat_highest(mod1$fit) #Potential scale reduction: All rhats < 1.1
+check_hmc_diagnostics(ebs_base_mod$fit)
+neff_lowest(ebs_base_mod$fit)
+rhat_highest(ebs_base_mod$fit) #Potential scale reduction: All rhats < 1.1
 
 #Diagnostic Plots
-plot(mod1, ask = FALSE)
-plot(conditional_effects(mod1), ask = FALSE)
-mcmc_plot(mod1, type = "areas", prob = 0.95)
-mcmc_neff(neff_ratio(mod1)) #Effective sample size: All ratios > 0.1
-pp_check(mod1)
+plot(ebs_base_mod, ask = FALSE)
+plot(conditional_effects(ebs_base_mod), ask = FALSE)
+mcmc_plot(ebs_base_mod, type = "areas", prob = 0.95)
+mcmc_neff(neff_ratio(ebs_base_mod)) #Effective sample size: All ratios > 0.1
+pp_check(ebs_base_mod)
 
-summary(mod1) #credible intervals for spline variance parameters (sds) don't include 0, let's keep smooths
-bayes_R2(mod1) #R2 = 0.19
-loo(mod1) -> plot(a)
+summary(ebs_base_mod) #credible intervals for spline variance parameters (sds) don't include 0, let's keep smooths
+bayes_R2(ebs_base_mod) #R2 = 0.19
+loo(ebs_base_mod) 
 
-###########################
+#-------------------------------------------------------------------------------------
 #MODEL 2 BASE MODEL + INVERT: default priors, truncated Gaussian, 
-#Covariates: crab size/julian day/random effect + invert main effect 
+  #Covariates: crab size/julian day/random effect + invert main effect
+  #Exploratory model to test for potential influence of benthic invert biomass 
 
 mod2_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
-                      s(fourth.root.invert, k = 3) + (1 | region))  
+                      s(invert, k = 3) + (1 | region))  
 
 mod2 <- brm(mod2_formula,
             data = ebs.dat,
@@ -290,13 +299,13 @@ loo(mod2) -> b
 plot(b)
 
 # model comparison
-loo(mod1, mod2, moment_match = TRUE) 
+loo(ebs_base_mod, mod2, moment_match = TRUE) 
 #Interesting...at medium to high levels of benthic prey, we see declines in 
   #energetic condition. Maybe more a proxy for competition than prey? 
-#With a SE < 5, benthic inverts really doesn't add much to predictive capacity. 
+#With (-6.2/3.5) < 5, benthic inverts really doesn't add much to predictive capacity. 
   #We'll drop for parsimony until we can better resolve a benthic prey index
-
-#######################
+  #Can also evaluate elpd_diff > 6 * se_diff
+#-------------------------------------------------------------------------------
 #MODEL 3 BASE MODEL + CRAB DENSITY: default priors, truncated Gaussian, 
 #Covariates: crab size/julian day/random effect + crab density fixed effect
 
@@ -333,11 +342,12 @@ loo(mod3) -> c
 plot(c)
 
 # model comparison
-loo(mod1, mod3, moment_match = TRUE) 
-#Also pretty small difference in models (eldp_diff/SE_diff < 2, elpd_diff < 4) with an unclear
-  #effect of density. We'll keep cpue in for now, recognizing that models are very similar 
+loo(ebs_base_mod, mod3, moment_match = TRUE) 
+#Very small difference in models (eldp_diff/SE_diff < 2, elpd_diff < 4) with an unclear
+  #effect of density. We'll keep cpue in for now to test for interaction, recognizing that models 
+  #are very similar 
 
-################################
+#----------------------------------------------------------------------------------
 #MODEL 4 BASE MODEL + TEMP: default priors, truncated Gaussian, 
 #Covariates: crab size/julian day/random effect + temperature fixed effect 
 
@@ -373,11 +383,11 @@ loo(mod4) -> d
 plot(d)
 
 # model comparison
-loo(mod1, mod3, mod4, moment_match = TRUE)
+loo(ebs_base_mod, mod3, mod4, moment_match = TRUE)
 #Temperature model has highest predictive capacity 
 
-####################################
-#MODEL 5 BASE MODEL + TEMP + DENSITY: default priors, truncated Gaussian, 
+#----------------------------------------------------------------------------------
+#MODEL 5 TEMP + DENSITY MAIN EFFECTS: default priors, truncated Gaussian, 
 #Covariates: crab size/julian day/random effect + temperature and density fixed effect 
 
 mod5_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
@@ -413,43 +423,87 @@ loo(mod5) -> d
 plot(d)
 
 # model comparison
-loo(mod1, mod3, mod4, mod5, moment_match = TRUE)
+loo(ebs_base_mod, mod3, mod4, mod5, moment_match = TRUE)
 #So seems that there's no added predictive capacity in keeping cpue in, and loo can't 
-  #differentiate between the additive and temperature model. We'll stick with additive 
-  #as a hypothesis test for no effect of cpue 
+  #differentiate between the cpue/temp additive and temperature-only model. We'll stick with additive 
+  #so we can compare to an interaction model 
 
-###################################
-#Full Model Comparison (base model + base/cpue + base/cpue/temp)
+#-----------------------------------------------------------------------------
+#MODEL 6 BASE MODEL + TEMP x DENSITY INTERACTION: default priors, truncated Gaussian, 
+#Covariates: crab size/julian day/random effect + temperature x density ixn  
+  #Note that we're now modeling temp/cpue as linear effects to fit an interaction term
+
+mod6_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
+                      fourth.root.cpue*temperature + (1 | region))  
+
+mod6 <- brm(mod6_formula,
+            data = ebs.dat,
+            family = gaussian,
+            cores = 4, chains = 4, iter = 2500, warmup = 1000,
+            save_pars = save_pars(all = TRUE),
+            control = list(adapt_delta = 0.999, max_treedepth = 14))
+
+#Save output
+saveRDS(mod6, file = "./output/mod6.rds")
+mod6 <- readRDS("./output/mod6.rds")
+
+#MCMC convergence diagnostics 
+check_hmc_diagnostics(mod6$fit)
+neff_lowest(mod6$fit)
+rhat_highest(mod6$fit) #Potential scale reduction: All rhats < 1.1
+
+#Diagnostic Plots
+plot(mod6, ask = FALSE)
+plot(conditional_effects(mod6), ask = FALSE) #predictions evaluated at mean +/- 1 SD
+  temp <- list(temperature = c(0, 2, 3)) #Lets try more biologically meaningful temps
+conditional_effects(mod6, effects = "fourth.root.cpue:temperature",
+                         int_conditions = temp) %>% 
+  plot()
+mcmc_plot(mod6, type = "areas", prob = 0.95)
+mcmc_neff(neff_ratio(mod6)) #Effective sample size: All ratios > 0.1
+pp_check(mod6)
+
+summary(mod6) 
+bayes_R2(mod6) #R2 = 0.23
+loo(mod6) -> d
+plot(d)
+
+# model comparison
+loo(ebs_base_mod, mod3, mod4, mod5, mod6, moment_match = TRUE)
+#Interaction model has much higher predictive capacity 
+
+#----------------------------------------------------------------------------
+#Full Model Comparison (base model + base/cpue + base/cpue/temp + base/cpue*temp)
 
 #LOO-CV
-mod1 <- add_criterion(mod1, "loo")
-mod3 <- add_criterion(mod3, "loo")
+ebs_base_mod <- add_criterion(ebs_base_mod, "loo")
 mod4 <- add_criterion(mod4, "loo")
 mod5 <- add_criterion(mod5, "loo")
-loo_compare(mod1, mod3, mod4, mod5, criterion = "loo") %>% print(simplify = F)
-  model.comp <- loo(mod1, mod3, mod4, mod5, moment_match = TRUE)
+mod6 <- add_criterion(mod6, "loo")
+loo_compare(ebs_base_mod, mod4, mod5, mod6, criterion = "loo") %>% print(simplify = F)
+  model.comp <- loo(ebs_base_mod, mod4, mod5, mod6, moment_match = TRUE)
 
 #and loo weights
-model_weights(mod1, mod3, mod4, mod5, weights = "loo") %>% round(digits = 2)
+model_weights(ebs_base_mod, mod4, mod5, mod6, weights = "loo") %>% round(digits = 2)
 #more parsimonious temperature model is given highest weight
 
 #Table of Rsq Values 
-rbind(bayes_R2(mod1), 
-      bayes_R2(mod3),
+rbind(bayes_R2(ebs_base_mod), 
       bayes_R2(mod4),
-      bayes_R2(mod5)) %>%
+      bayes_R2(mod5),
+      bayes_R2(mod6)) %>%
   as_tibble() %>%
-  mutate(model = c("mod1", "mod3", "mod4", "mod5"),
+  mutate(model = c("ebs_base_mod", "mod4", "mod5", "mod6"),
          r_square_posterior_mean = round(Estimate, digits = 2)) %>%
   select(model, r_square_posterior_mean) 
 
 #Model weights 
-loo1 <- loo(mod1)
-loo3 <- loo(mod3)
+loo1 <- loo(ebs_base_mod)
 loo4 <- loo(mod4)
 loo5 <- loo(mod5)
+loo6 <- loo(mod6)
 
-loo_list <- list(loo1, loo3, loo4, loo5)
+loo_list <- list(loo1, loo4, loo5, loo6)
 
 #Compute and compare Pseudo-BMA weights without Bayesian bootstrap, 
   #Pseudo-BMA+ weights with Bayesian bootstrap, and Bayesian stacking weights
@@ -459,23 +513,20 @@ pbma_wts <- loo_model_weights(loo_list, method = "pseudobma", BB = FALSE)
 round(cbind(stacking_wts, pbma_wts, pbma_BB_wts),2)
 
 #Save model output 
-tab_model(mod1, mod3, mod4, mod5)
+tab_model(ebs_base_mod, mod3, mod4, mod5, mod6)
 
-forms <- data.frame(formula=c(as.character(mod1_formula)[1],
+forms <- data.frame(formula=c(as.character(ebs_base_formula)[1],
                               as.character(mod3_formula)[1],
                               as.character(mod4_formula)[1],
-                              as.character(mod5_formula)[1]))
+                              as.character(mod5_formula)[1],
+                               as.character(mod6_formula)[1]))
 
 comp.out <- cbind(forms, model.comp$diffs[,1:2])
 write.csv(comp.out, "./output/ebs_pop_model_comp.csv")
 
-#Given that mod4 and mod5 are so similar, let's keep the full additive model 
-  #to test the hyp of density effects, acknowledging that it has a very insignificant
-  #effect, and does not improve predictive capacity of the full model 
-
-#################################
-#FINAL MODEL:  Run mod5 model with 10,000 iterations and set seed for reproducibility 
-ebs_pop_final <- brm(mod5_formula,
+#-------------------------------------------------------------------------------
+#FINAL MODEL:  Run mod6 model with 10,000 iterations and set seed for reproducibility 
+ebs_pop_final <- brm(mod6_formula,
                      data = ebs.dat,
                      family = gaussian,
                      cores = 4, chains = 4, iter = 10000, warmup = 1000,
@@ -491,7 +542,7 @@ check_hmc_diagnostics(ebs_pop_final$fit)
 neff_lowest(ebs_pop_final$fit)
 rhat_highest(ebs_pop_final$fit)
 summary(ebs_pop_final)
-bayes_R2(ebs_pop_final) #r2 = .23
+bayes_R2(ebs_pop_final) #r2 = .31
 r2_bayes(ebs_pop_final) #conditional r2 takes both fixed and random effects into account 
 loo1 <- loo(ebs_pop_final, save_psis = TRUE)
 plot(loo1)
@@ -527,14 +578,14 @@ pss <- powerscale_sequence(ebs_pop_final) #estimate posterior draws based on pow
 #estimate posterior draws based on power-scaling
 powerscale_plot_ecdf(pss, variables = c("sigma", "bs_sjulian_1", "bs_sfourth.root.cpue_1", "sds_scw_1"))
 
-#Detection of prior-data conflicts suggests a model modification using heavy tailed priors -
-  #this was tried (see model 1 script) and pp_checks did not improve 
+#Detection of a few prior-data conflicts suggests a model modification using heavy tailed priors
+  #could be warranted. This was tried (see model 1 script) and pp_checks did not improve 
 
-################################
+#----------------------------------------------------------------------------------------------
 #Extract and plot conditional effects of each predictor from best model (i.e. posterior distributions of conditional means)
   #conditioning on the mean for all other predictors, yr/site effects ignored 
 
-#tidybayes method: massive dataset being passed to add_epred_draws() crashing R....skip to line 522
+#tidybayes method attempted below: massive dataset being passed to add_epred_draws() crashing R....
   #Matthew Kay advice: "if you are just creating the huge long format data frame as an intermediate 
   #step (e.g. you are summarizing it down later), one way to solve this is to split up the input 
   #prediction grid into chunks, and pass each chunk to add_epred_draws and do the summarization, 
@@ -565,9 +616,10 @@ powerscale_plot_ecdf(pss, variables = c("sigma", "bs_sjulian_1", "bs_sfourth.roo
   #stat_lineribbon(aes(y = .prediction), .width = c(.95, .80), alpha = 1/4) +
   g#eom_point(data = ebs.dat) 
 
-####
- #Size effect plot 
-#Need to save settings from conditional effects as an object to plot in ggplot
+#-----------------------------------------------------------------------------
+#Extracting and Plotting Conditional Effects 
+  #Need to save settings from conditional effects as an object to plot in ggplot
+  #since we're not using tidybayes
 ## 95% CI
 ce1s_1 <- conditional_effects(ebs_pop_final , effect = "cw", re_formula = NA,
                               probs = c(0.025, 0.975))
@@ -593,9 +645,10 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_line(size = 1, color = "black") +
   geom_rug(data = ebs.dat, aes(x = cw, y = Total_FA_Conc_WWT), 
            colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data 
-  labs(x = "Carapace Width", y = "") +
+  labs(x = "Carapace Width (mm)", y = "") +
   theme_minimal() +
-  ylim(0,215) -> sizeplot
+  ylim(0,215) +
+  theme(axis.text=element_text(size=8)) -> sizeplot
 
 ##Julian Day
 ## 95% CI
@@ -624,17 +677,22 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
            colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
   labs(x = "Day of Year", y = "") +
   theme_minimal() +
-  ylim(0,215) -> dayplot
+  ylim(0,215) +
+  theme(axis.text=element_text(size=8)) -> dayplot
 
-##Snow Crab Density 
-## 95% CI
-ce1s_1 <- conditional_effects(ebs_pop_final , effect = "fourth.root.cpue", re_formula = NA,
+##Snow Crab Density x Temperature Interaction 
+temp <- list(temperature = c(0, 1, 2, 3))
+
+ce1s_1 <- conditional_effects(ebs_pop_final, effects = "fourth.root.cpue:temperature",
+                              int_conditions = temp, re_formula = NA,
                               probs = c(0.025, 0.975))
 ## 90% CI
-ce1s_2 <- conditional_effects(ebs_pop_final , effect = "fourth.root.cpue", re_formula = NA,
+ce1s_2 <- conditional_effects(ebs_pop_final, effects = "fourth.root.cpue:temperature",
+                              int_conditions = temp, re_formula = NA,
                               probs = c(0.05, 0.95))
 ## 80% CI
-ce1s_3 <- conditional_effects(ebs_pop_final , effect = "fourth.root.cpue", re_formula = NA,
+ce1s_3 <- conditional_effects(ebs_pop_final, effects = "fourth.root.cpue:temperature",
+                              int_conditions = temp, re_formula = NA,
                               probs = c(0.1, 0.9))
 dat_ce <- ce1s_1$fourth.root.cpue
 dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
@@ -644,88 +702,51 @@ dat_ce[["lower_90"]] <- ce1s_2$fourth.root.cpue[["lower__"]]
 dat_ce[["upper_80"]] <- ce1s_3$fourth.root.cpue[["upper__"]]
 dat_ce[["lower_80"]] <- ce1s_3$fourth.root.cpue[["lower__"]]
 
-ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
-  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "#F7FBFF") +
-  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
-  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
-  geom_line(size = 1, color = "black") +
-  geom_rug(data = ebs.dat, aes(x = fourth.root.cpue, y = Total_FA_Conc_WWT), 
-           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
-  labs(x = "Snow Crab Density", y = "") +
+ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(temperature), fill = ordered(temperature))) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95, fill = ordered(temperature)), alpha = .1, colour = NA) +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90, fill = ordered(temperature)), alpha = .3, colour = NA) +
+  geom_line(aes(color = ordered(temperature)), linewidth = 1) +
   theme_minimal() +
-  ylim(0,215) -> cpueplot
+  labs(x = "Snow Crab Density\n(Fourth root CPUE)", y = "Energetic Condition\n(total FA/DWT)",
+       fill = expression("Temperature " ( degree~C)), color = expression("Temperature " ( degree~C))) +
+  scale_fill_manual(values = my_colors) +
+  scale_color_manual(values = my_colors) + 
+  theme(axis.title=element_text(colour="grey30")) +
+  ggtitle("Eastern Bering Sea") +
+  theme(plot.title = element_text(hjust = 0.5)) -> ixnplot
 
-##Temperature 
-## 95% CI
-ce1s_1 <- conditional_effects(ebs_pop_final , effect = "temperature", re_formula = NA,
-                              probs = c(0.025, 0.975))
-## 90% CI
-ce1s_2 <- conditional_effects(ebs_pop_final , effect = "temperature", re_formula = NA,
-                              probs = c(0.05, 0.95))
-## 80% CI
-ce1s_3 <- conditional_effects(ebs_pop_final , effect = "temperature", re_formula = NA,
-                              probs = c(0.1, 0.9))
-dat_ce <- ce1s_1$temperature
-dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
-dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
-dat_ce[["upper_90"]] <- ce1s_2$temperature[["upper__"]]
-dat_ce[["lower_90"]] <- ce1s_2$temperature[["lower__"]]
-dat_ce[["upper_80"]] <- ce1s_3$temperature[["upper__"]]
-dat_ce[["lower_80"]] <- ce1s_3$temperature[["lower__"]]
+#---------------------------------------------------------------------------
+#Combine and Save Plots to create Fig 4 and Supplementary Fig 
+  #need to run NBS drivers script first
 
-ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
-  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "#F7FBFF") +
-  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "#DEEBF7") +
-  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "#C6DBEF") + 
-  geom_line(size = 1, color = "black") +
-  geom_rug(data = ebs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), 
-           colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
-  labs(x = "Bottom Temperature", y = "") +
-  theme_minimal() +
-  ylim(0, 215) -> tempplot
+#Fig 4 temperature/density effects
+ebs_plot <- ixnplot + plot_annotation(tag_levels = 'a') 
 
-#Combine ebs model plots 
-(sizeplot + dayplot) / (cpueplot + tempplot) + 
-  plot_annotation(tag_levels = 'a', title = "Eastern Bering Sea Snow Crab",
-        theme = theme(plot.title = element_text(hjust = 0.5))) -> plot
+nbsplot <- tempplot_nbs + cpueplot_nbs + 
+  plot_annotation(tag_levels = list(c('b','c'))) +
+  plot_annotation('Northern Bering Sea',
+                  theme=theme(plot.title=element_text(hjust=0.5)))
 
-#workaround to get a single shared y axis label with patchwork 
-wrap_elements(plot) +
-  labs(tag = "Energetic Condition (Total FA/WWT)") +
-  theme(plot.tag = element_text(size = rel(1), angle = 90),
-    plot.tag.position = "left") -> final_plot
-ggsave("./figures/ebs_pop_fullmod.png", plot=final_plot)
+wrap_elements(ebs_plot) / wrap_elements(nbsplot)
+ggsave("./figures/Fig4.png", height=6, width=6, unit="in")
 
-#Fig 4 in ms: Plot temperature effects from EBS/NBS models  
-  #need to run NBS drivers script first 
-(tempplot +ggtitle("Eastern Bering Sea") + labs(y="Energetic Condition", x="") +
-    theme(plot.title = element_text(hjust = 0.5, color = "grey40"))) +
-(tempplot_nbs + ggtitle("Northern Bering Sea") + labs(x="") +
-   theme(plot.title = element_text(hjust = 0.5, color = "grey40"))) +
-plot_annotation(tag_levels = 'a') -> plot2
-  #combine x axis label
-wrap_elements(plot2) +
-  labs(tag = expression(" Bottom Temperature " ( degree~C))) +
-  theme(plot.tag = element_text(size = 12),
-        plot.tag.position = "bottom") -> com_plot
+#Supplementary Figure with size and DOY conditional effects 
 
-ggsave("./figures/Fig4ebs_nbs_temp.png", height=5, width=6.5, units="in")
-
-#Supplementary Fig in ms: cpue/julian/cw effects for EBS and NBS models 
-(cpueplot + labs(y="Energetic Condition")) + dayplot +sizeplot +
+(dayplot + labs(y="Energetic Condition\n(total FA/DWT)") & theme(axis.text=element_text(size=8))) + sizeplot +
   plot_annotation(tag_levels = 'a', title = "Eastern Bering Sea",
-        theme = theme(plot.title = element_text(hjust = 0.5, color = "grey40"))) &
+                  theme = theme(plot.title = element_text(hjust = 0.5))) &
   ylim(0,175) -> ebs_comb
 
-(cpueplot_nbs + labs(y="Energetic Condition")) + dayplot_nbs +sizeplot_nbs +
-  plot_annotation(tag_levels = list(c('d','e','f')), title = "Northern Bering Sea",
-          theme = theme(plot.title = element_text(hjust = 0.5, color = "grey40"))) &
+(dayplot_nbs + labs(y="Energetic Condition\n(total FA/DWT)")& theme(axis.text=element_text(size=8))) +sizeplot_nbs +
+  plot_annotation(tag_levels = list(c('c','d')), title = "Northern Bering Sea",
+                  theme = theme(plot.title = element_text(hjust = 0.5))) &
   ylim(0,150) -> nbs_comb
 
-ggarrange(ebs_comb, nbs_comb, ncol=1 , nrow=2)
-ggsave("./figures/SuppFigebs_nbs.png")
-#####################################################
-#Other miscellaneous snippets of code 
+wrap_elements(ebs_comb) / wrap_elements(nbs_comb)
+ggsave("./figures/Sup1.png", height=5, width=5, unit="in")
+
+#--------------------------------------------------------------------------------
+#MISCELLANOUS SNIPPETS OF CODE FOR REFERENCE BELOW 
 
 #probability of direction of effect 
 temp_draws <- ebs_pop_final %>%
@@ -826,105 +847,13 @@ ggplot(outcome_tidy, aes(x = ate)) +
 #Also I think we'd need to standardize all response and predictor variables to obtain
   #comparable effect sizes 
 
-####################################
-#Goal #2: Interpret conditional effects of temperature and snow crab density within each year
-  #Testing best model from Goal #1 with year interactions
 
-#MODEL 6 BASE MODEL + TEMP*YR + DENSITY*YR: default priors, truncated Gaussian, 
-#Covariates: crab size/julian day/random effect + temperature*year and 
-  #density*year fixed effect 
+#-------------------------------------------------------------------------
+#Example script for interaction with categorical variable (ie year)
 
-mod6_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
+mod_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
                       s(temperature, k=3, by=year) + s(fourth.root.cpue, k=3, by=year) +
-                      (1 | region))  
-
-mod6 <- brm(mod6_formula,
-            data = ebs.dat,
-            family = gaussian,
-            cores = 4, chains = 4, iter = 2500, warmup = 1000,
-            save_pars = save_pars(all = TRUE),
-            control = list(adapt_delta = 0.999, max_treedepth = 14))
-
-#Save output
-saveRDS(mod6, file = "./output/mod6.rds")
-mod6 <- readRDS("./output/mod6.rds")
-
-#MCMC convergence diagnostics 
-check_hmc_diagnostics(mod6$fit)
-neff_lowest(mod6$fit)
-rhat_highest(mod6$fit) #Potential scale reduction: All rhats < 1.1
-
-#Diagnostic Plots
-plot(mod6, ask = FALSE)
-plot(conditional_effects(mod6), ask = FALSE, points = TRUE, rug =TRUE)
-mcmc_plot(mod6, type = "areas", prob = 0.95)
-mcmc_neff(neff_ratio(mod6)) #Effective sample size: All ratios > 0.1
-pp_check(mod6)
-
-summary(mod6) 
-bayes_R2(mod6) #R2 = 0.43
-loo(mod6) -> d
-plot(d)
-
-# model comparison
-loo(mod5, mod6, moment_match = TRUE)
-
-# model comparison
-mod1 <- add_criterion(mod1, "loo")
-mod3 <- add_criterion(mod3, "loo")
-mod4 <- add_criterion(mod4, "loo")
-mod5 <- add_criterion(mod5, "loo")
-mod6 <- add_criterion(mod6, "loo")
-loo_compare(mod1, mod3, mod4, mod5, mod6, criterion = "loo") %>% print(simplify = F)
-
-#and loo weights
-model_weights(mod1, mod3, mod4, mod5, mod6, weights = "loo") %>% round(digits = 2)
-#So seems that full model with interactions has highest predictive capacity
-
-#################################
-#FINAL MODEL:  Run mod6 model with 10,000 iterations and set seed for reproducibility 
-ebs_yrixn_final <- brm(mod6_formula,
-                     data = ebs.dat,
-                     family = gaussian,
-                     cores = 4, chains = 4, iter = 10000, warmup = 1000,
-                     save_pars = save_pars(all = TRUE), seed = 3,
-                     control = list(adapt_delta = 0.999, max_treedepth = 14))
-
-#Save model output 
-saveRDS(ebs_yrixn_final, file = "./output/ebs_yrixn_final.rds")
-ebs_yrixn_final <- readRDS("./output/ebs_yrixn_final.rds")
-
-#MCMC convergence diagnostics 
-check_hmc_diagnostics(ebs_yrixn_final$fit)
-neff_lowest(ebs_yrixn_final$fit)
-rhat_highest(ebs_yrixn_final$fit)
-summary(ebs_yrixn_final)
-bayes_R2(ebs_yrixn_final) 
-loo2 <- loo(ebs_yrixn_final, save_psis = TRUE)
-plot(loo2)
-
-#Diagnostic Plots
-plot(ebs_yrixn_final, ask = FALSE)
-plot(conditional_effects(ebs_yrixn_final), ask = FALSE)
-mcmc_plot(ebs_yrixn_final, prob = 0.95)
-mcmc_neff(neff_ratio(ebs_yrixn_final)) #Effective sample size: All ratios > 0.1
-
-#Posterior Predictive Check Plots:
-pp_check(ebs_yrixn_final) #this doesn't look great...
-pp_check(ebs_yrixn_final, type = "ecdf_overlay")
-pp_check(ebs_yrixn_final, type = "stat", stat = "mean")
-pp_check(ebs_yrixn_final, type = "stat", stat = "min")
-pp_check(ebs_yrixn_final, type = "stat", stat = "max")
-
-#Pit plots
-ppc_pit_ecdf(pit=pit(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_final))) #slight overdispersion
-ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_final))
-
-ppc_loo_pit_qq(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_yrixn_final),
-               lw = weights(loo2$psis_object)) #hmmm..also not great
-
-################################
-#Extract and plot conditional effects of yr*cpue and yr*temperature interaction
+                      (1 | region))
 
 #temperature*year
 conditions <- data.frame(year = c(2019, 2021, 2022, 2023))
@@ -994,10 +923,6 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(year), fill = 
 (temp_ixn_ebs + cpue_ixn_ebs)  +  plot_annotation(tag_levels = 'a', title = "Eastern Bering Sea",
 theme = theme(plot.title = element_text(hjust = 0.5, color="grey40"))) -> ebs
 
-#Fig 5 in Manuscript: combined EBS and NBS plot (run NBS drivers models.R script first)
-ggarrange(ebs, nbs, ncol=1 , nrow=2)                            
-ggsave("./figures/Fig5ebsyrinteractions.png")
-
 #faceted year x temperature plot
 ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_ribbon(aes(ymin = lower_95, ymax = upper_95), alpha = .1, colour = NA) +
@@ -1028,87 +953,6 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   scale_color_manual(values = my_colors) +
   facet_wrap(~year)
 
-####################################
-#EXPLORATION: Fit a linear interaction between cpue and temp, compare to s(temp) + s(cpue) model
-  #to look at overall effects of density and temp 
-
-test_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
-                      temperature * fourth.root.cpue +
-                      (1 | region))  
-
-test <- brm(test_formula,
-            data = ebs.dat,
-            family = gaussian,
-            cores = 4, chains = 4, iter = 2500, warmup = 1000,
-            save_pars = save_pars(all = TRUE),
-            control = list(adapt_delta = 0.999, max_treedepth = 14))
-
-#Save output
-saveRDS(test, file = "./output/test.rds")
-test <- readRDS("./output/test.rds")
-
-plot(conditional_effects(test), ask = FALSE)
-summary(test) 
-
-bayes_R2(test) #R2 = 0.30
-loo(test) -> d
-plot(d)
-
-# model comparison
-loo(mod5, test, moment_match = TRUE)
-
-######
-#Now let's run 3-way temp*density*year model and compare to s(temp, by= year) + s(cpue, by=year)
-  #to evaluate time varying effects of density and temperature 
-
-test2_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
-                      temperature*fourth.root.cpue*year +
-                      (1 | region))  
-
-test2 <- brm(test2_formula,
-            data = ebs.dat,
-            family = gaussian,
-            cores = 4, chains = 4, iter = 2500, warmup = 1000,
-            save_pars = save_pars(all = TRUE),
-            control = list(adapt_delta = 0.999, max_treedepth = 14))
-
-plot(conditional_effects(test2), ask = FALSE)
-summary(test) 
-
-bayes_R2(test) #R2 = 0.30
-loo(test) -> d
-plot(d)
-
-# model comparison
-loo(mod5, test, moment_match = TRUE)
-
-
-
-test_formula_nbs <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
-                      temperature * fourth.root.cpue +
-                      (1 | region))  
-
-test_nbs <- brm(test_formula_nbs,
-            data = nbs.dat,
-            family = gaussian,
-            cores = 4, chains = 4, iter = 2500, warmup = 1000,
-            save_pars = save_pars(all = TRUE),
-            control = list(adapt_delta = 0.999, max_treedepth = 14))
-
-
-#Save output
-saveRDS(test_nbs, file = "./output/test_nbs.rds")
-test_nbs <- readRDS("./output/test_nbs.rds")
-
-plot(conditional_effects(test_nbs), ask = FALSE)
-summary(test) 
-
-bayes_R2(test) #R2 = 0.30
-loo(test) -> d
-plot(d)
-
-# model comparison
-loo(nbs4, test_nbs, moment_match = TRUE)
 
 
 
