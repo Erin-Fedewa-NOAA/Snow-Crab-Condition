@@ -233,8 +233,7 @@ year_ebs %>%
 ggplot(dat2, aes(year, estimate__,)) +
   geom_bar(aes(fill = ordered(year)), stat='identity', size=3) +
   geom_errorbar(aes(year, ymin=lower__, ymax=upper__), width=0.3, size=0.5, color = "grey60") +
-  ylab("Energetic Condition (total FA/DWT)") + xlab("") +
-  
+  ylab("Energetic Condition (mg FA/g WWT)") + xlab("") +
   scale_fill_manual(values=my_colors) +
   facet_wrap(~lme) +
   geom_vline(data = subset(dat2, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +

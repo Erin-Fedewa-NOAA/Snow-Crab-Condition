@@ -707,11 +707,10 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(temperature), 
   geom_ribbon(aes(ymin = lower_90, ymax = upper_90, fill = ordered(temperature)), alpha = .3, colour = NA) +
   geom_line(aes(color = ordered(temperature)), linewidth = 1) +
   theme_minimal() +
-  labs(x = "Snow Crab Density\n(Fourth root CPUE)", y = "Energetic Condition\n(total FA/DWT)",
+  labs(x = "Snow Crab Density\n(Fourth root CPUE)", y = "Energetic Condition\n(mg FA/g WWT)",
        fill = expression("Temperature " ( degree~C)), color = expression("Temperature " ( degree~C))) +
   scale_fill_manual(values = my_colors) +
   scale_color_manual(values = my_colors) + 
-  theme(axis.title=element_text(colour="grey30")) +
   ggtitle("Eastern Bering Sea") +
   theme(plot.title = element_text(hjust = 0.5)) -> ixnplot
 
@@ -732,17 +731,20 @@ ggsave("./figures/Fig4.png", height=6, width=6, unit="in")
 
 #Supplementary Figure with size and DOY conditional effects 
 
-(dayplot + labs(y="Energetic Condition\n(total FA/DWT)") & theme(axis.text=element_text(size=8))) + sizeplot +
+(dayplot + labs(y="Energetic Condition\n(mg FA/g WWT)"))  + sizeplot +
   plot_annotation(tag_levels = 'a', title = "Eastern Bering Sea",
                   theme = theme(plot.title = element_text(hjust = 0.5))) &
   ylim(0,175) -> ebs_comb
 
-(dayplot_nbs + labs(y="Energetic Condition\n(total FA/DWT)")& theme(axis.text=element_text(size=8))) +sizeplot_nbs +
+(dayplot_nbs + labs(y="Energetic Condition\n(mg FA/g WWT)")) + sizeplot_nbs +
   plot_annotation(tag_levels = list(c('c','d')), title = "Northern Bering Sea",
                   theme = theme(plot.title = element_text(hjust = 0.5))) &
   ylim(0,150) -> nbs_comb
 
-wrap_elements(ebs_comb) / wrap_elements(nbs_comb)
+wrap_elements(ebs_comb + plot_layout() & theme(axis.title.x = element_text(size = 10),
+                axis.title.y = element_text(size = 10))) / 
+wrap_elements(nbs_comb + plot_layout() & theme(axis.title.x = element_text(size = 10),
+                                 axis.title.y = element_text(size = 10))) 
 ggsave("./figures/Sup1.png", height=5, width=5, unit="in")
 
 #--------------------------------------------------------------------------------

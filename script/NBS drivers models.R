@@ -476,7 +476,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   geom_line(size = 1, color = "#084594") +
   geom_rug(data = nbs.dat, aes(x = temperature, y = Total_FA_Conc_WWT), 
            colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
-  labs(x = expression("Temperature " ( degree~C)), y = "Energetic Condition\n(total FA/DWT)") +
+  labs(x = expression("Temperature " ( degree~C)), y = "Energetic Condition\n(mg FA/g WWT)") +
   theme_minimal() +
   ylim(0, 215) -> tempplot_nbs
 
