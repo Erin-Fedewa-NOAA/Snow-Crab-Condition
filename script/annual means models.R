@@ -55,7 +55,7 @@ my_colors <- c("#D55E00","#9ECAE1", "#4292C6", "#084594")
 my_colors2 <- RColorBrewer::brewer.pal(7, "GnBu")[c(5,6)]
 
 
-#############################################
+#-----------------------------------------------------------------------------
 #data wrangling- EBS dataset  
 condition_master %>%
   mutate(julian=yday(parse_date_time(start_date, "mdy", "US/Alaska"))) %>%  #add julian date 
@@ -88,7 +88,7 @@ condition_master %>%
          invert = as.numeric(total_benthic_cpue),
          julian = as.numeric(julian)) -> nbs.dat
 
-################################################
+#-------------------------------------------------------------------------------
 #EBS ANNUAL MEANS
 
 ebs_annual_final_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
@@ -130,7 +130,7 @@ pp_check(ebs_annual_final, type = "stat", stat = "max")
 ppc_pit_ecdf(pit=pit(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_annual_final))) #no overdisersion, looks good
 ppc_intervals(y = ebs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(ebs_annual_final))
 
-################################
+#-----------------------------------------------------------------------------------
 #Extract conditional effect of year for plot
 
 conditional_effects(ebs_annual_final, effect = "year")
@@ -174,7 +174,7 @@ ggplot(years_ame, aes(y = year, x = .value, fill = after_stat(abs(x) < 50))) +
   theme_minimal() + 
   labs(x = "Average Marginal Effect on Energetic Condition", y="")
 
-##########################
+#--------------------------------------------------------------------------------
 #Run NBS model
 
 nbs_annual_final_formula <-  bf(Total_FA_Conc_WWT | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
@@ -216,7 +216,7 @@ pp_check(nbs_annual_final, type = "stat", stat = "max")
 ppc_pit_ecdf(pit=pit(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_annual_final))) #no overdisersion, looks good
 ppc_intervals(y = nbs.dat$Total_FA_Conc_WWT, yrep = posterior_predict(nbs_annual_final)) 
 
-######################################
+#---------------------------------------------------------------------------------
 #Conditional Effect for year 
 conditional_effects(nbs_annual_final, effect = "year")
 
@@ -271,3 +271,41 @@ ggplot(years_ame_nbs,aes(x = .value, fill=ordered(year))) +
 marg_ebs + marg_nbs + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
 ggsave("./figures/FigSupp.png", dpi=300, width = 6.5, height = 4.5, units = "in")
 
+#----------------------------------------------------------------------------------
+#Regression model to look at annual mean density vrs energetic condition by region 
+
+#Combine crab and condition data
+ebs.dat %>%
+  group_by(year) %>%
+  summarise(mean_cpue = mean(cpue)) %>% 
+  mutate(lme = rep("Eastern Bering Sea")) %>%
+  full_join(nbs.dat %>%
+              group_by(year) %>%
+              summarise(mean_cpue = mean(cpue)) %>% 
+              mutate(lme = rep("Northern Bering Sea"))) %>%
+  left_join(year_ebs %>% full_join(year_nbs)) %>%
+  #need to run "figures and mapping script for abundance data
+  left_join(plot_abun %>%
+              select(YEAR, ABUNDANCE_MIL, lme) %>%
+              rename(year = YEAR) %>%
+              mutate(year = as.factor(year))) -> cond_crab_dat 
+
+#quick plot of condition x mean density at stations sampled 
+cond_crab_dat %>%
+  ggplot(aes(mean_cpue, estimate__, group = lme, color=lme)) + 
+  geom_point() +
+  geom_text(aes(label=year), hjust=.5, vjust=-.7, show_guide = F) +
+  geom_smooth(method = 'lm', alpha = 0.2) + 
+  theme_bw() + 
+  labs(x="Mean snow crab density at stations sampled", y="Mean energetic condition") +
+  theme(legend.title=element_blank())
+
+#quick plot of condition x total ebs/nbs abundance 
+cond_crab_dat %>%
+  ggplot(aes(ABUNDANCE_MIL, estimate__, group = lme, color=lme)) + 
+  geom_point() +
+  geom_text(aes(label=year), hjust=.5, vjust=-.7, show_guide = F) +
+  geom_smooth(method = 'lm', alpha = 0.2) + 
+  theme_bw() + 
+  labs(x="Snow crab abundance", y="Mean energetic condition") +
+  theme(legend.title=element_blank())
