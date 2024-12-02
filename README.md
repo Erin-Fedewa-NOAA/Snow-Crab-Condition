@@ -1,5 +1,5 @@
 # Snow-Crab-Condition
-Data and analyses for "Time-dependent effects of density and temperature magnify energetic consequences for a collapsed marine population", submitted to Proceedings of the Royal Society B. This dataset includes immature snow crab sampled for hepatopancreas on 2019, 2021, 2022 and 2023 NOAA eastern and northern Bering Sea bottom trawl surveys. Total fatty acid concentrations estimated from hepatopancreas samples were used to explore spatiotemporal variation in energetic condition in relation to temperature and snow crab density. 
+Data and analyses for "Energetic limitations and mass mortality of Bering Sea snow crab: The role of warming and density dependence in collapse and recovery potential", in prep. This dataset includes immature snow crab sampled for hepatopancreas on 2019, 2021, 2022 and 2023 NOAA eastern and northern Bering Sea bottom trawl surveys. Total fatty acid concentrations estimated from hepatopancreas samples were used to explore spatiotemporal variation in energetic condition in relation to temperature and snow crab density. 
 
 Project PIs: Erin Fedewa (NOAA AFSC) and Louise Copeman (NOAA AFSC) 
 
