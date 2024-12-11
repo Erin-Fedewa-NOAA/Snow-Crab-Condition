@@ -648,7 +648,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   labs(x = "Carapace Width (mm)", y = "") +
   theme_minimal() +
   ylim(0,215) +
-  theme(axis.text=element_text(size=8)) -> sizeplot
+  theme(axis.title=element_text(size=10)) -> sizeplot
 
 ##Julian Day
 ## 95% CI
@@ -678,7 +678,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   labs(x = "Day of Year", y = "") +
   theme_minimal() +
   ylim(0,215) +
-  theme(axis.text=element_text(size=8)) -> dayplot
+  theme(axis.title = element_text(size=10)) -> dayplot
 
 ##Snow Crab Density x Temperature Interaction 
 temp <- list(temperature = c(0, 1, 2, 3))
@@ -711,33 +711,35 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(temperature), 
        fill = expression("Temperature " ( degree~C)), color = expression("Temperature " ( degree~C))) +
   scale_fill_manual(values = my_colors) +
   scale_color_manual(values = my_colors) + 
-  ggtitle("Eastern Bering Sea") +
-  theme(plot.title = element_text(hjust = 0.5)) -> ixnplot
+  ggtitle("Collapsing Eastern Bering Sea") +
+  theme(plot.title = element_text(hjust = 0.5, size=12)) +
+  theme(axis.title = element_text(size=10)) +
+  theme(legend.title=element_text(size=9.5)) -> ixnplot
 
 #---------------------------------------------------------------------------
 #Combine and Save Plots to create Fig 4 and Supplementary Fig 
   #need to run NBS drivers script first
 
 #Fig 4 temperature/density effects
-ebs_plot <- ixnplot + plot_annotation(tag_levels = 'a') 
+ebsplot <- plot_spacer() + ixnplot + plot_spacer() + 
+                plot_layout(widths = c(1,4.5,1))
 
 nbsplot <- tempplot_nbs + cpueplot_nbs + 
-  plot_annotation(tag_levels = list(c('b','c'))) +
-  plot_annotation('Northern Bering Sea',
-                  theme=theme(plot.title=element_text(hjust=0.5)))
+  plot_annotation('Non-collapsing Northern Bering Sea',
+                  theme=theme(plot.title=element_text(hjust=0.5, size=12)))
 
-wrap_elements(ebs_plot) / wrap_elements(nbsplot)
+wrap_elements(ebs_plot + plot_annotation(tag_levels='a')) / wrap_elements(nbsplot + plot_annotation(tag_levels = list(c('b','c'))))
 ggsave("./figures/Fig4.png", height=6, width=6, unit="in")
 
 #Supplementary Figure with size and DOY conditional effects 
 
 (dayplot + labs(y="Energetic Condition\n(mg FA/g WWT)"))  + sizeplot +
-  plot_annotation(tag_levels = 'a', title = "Eastern Bering Sea",
+  plot_annotation(tag_levels = 'a', title = "Collapsing Eastern Bering Sea",
                   theme = theme(plot.title = element_text(hjust = 0.5))) &
   ylim(0,175) -> ebs_comb
 
 (dayplot_nbs + labs(y="Energetic Condition\n(mg FA/g WWT)")) + sizeplot_nbs +
-  plot_annotation(tag_levels = list(c('c','d')), title = "Northern Bering Sea",
+  plot_annotation(tag_levels = list(c('c','d')), title = "Non-collapsing Northern Bering Sea",
                   theme = theme(plot.title = element_text(hjust = 0.5))) &
   ylim(0,150) -> nbs_comb
 
@@ -745,7 +747,7 @@ wrap_elements(ebs_comb + plot_layout() & theme(axis.title.x = element_text(size 
                 axis.title.y = element_text(size = 10))) / 
 wrap_elements(nbs_comb + plot_layout() & theme(axis.title.x = element_text(size = 10),
                                  axis.title.y = element_text(size = 10))) 
-ggsave("./figures/Sup1.png", height=5, width=5, unit="in")
+ggsave("./figures/Sup1.png", height=5, width=6.5, unit="in")
 
 #--------------------------------------------------------------------------------
 #MISCELLANOUS SNIPPETS OF CODE FOR REFERENCE BELOW 

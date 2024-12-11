@@ -390,7 +390,8 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   labs(x = "Carapace Width (mm)", y = "") +
   theme_minimal() +
   ylim(0,215) +
-  theme(axis.text=element_text(size=8)) -> sizeplot_nbs
+  theme(axis.text=element_text(size=8)) +
+  theme(axis.title = element_text(size=10)) -> sizeplot_nbs
 
 ##Julian Day
 ## 95% CI
@@ -420,7 +421,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   labs(x = "Day of Year", y = "") +
   theme_minimal() +
   ylim(0,215) +
-  theme(axis.text=element_text(size=8)) -> dayplot_nbs
+  theme(axis.title = element_text(size=10)) -> dayplot_nbs
 
 ##Snow Crab Density 
 ## 95% CI
@@ -449,7 +450,8 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
            colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
   labs(x = "Snow Crab Density\n(Fourth root CPUE)", y = "") +
   theme_minimal() +
-  ylim(0,215) -> cpueplot_nbs
+  ylim(0,215) +
+  theme(axis.title = element_text(size=10)) -> cpueplot_nbs
 
 ##Temperature 
 ## 95% CI
@@ -478,6 +480,7 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
            colour = "grey80", linewidth = .5, sides="b", alpha=.7, position = "jitter") + #raw data
   labs(x = expression("Temperature " ( degree~C)), y = "Energetic Condition\n(mg FA/g WWT)") +
   theme_minimal() +
-  ylim(0, 215) -> tempplot_nbs
+  ylim(0, 215) +
+  theme(axis.title = element_text(size=10)) -> tempplot_nbs
 
 #See EBS drivers script for figure compilation 

@@ -139,7 +139,7 @@ ce1s_1 <- conditional_effects(ebs_annual_final, effect = "year", re_formula = NA
                               probs = c(0.025, 0.975)) 
 ce1s_1$year %>%
   dplyr::select(year, estimate__, lower__, upper__) %>%
-  mutate(lme = as.factor("Eastern Bering Sea"))-> year_ebs
+  mutate(lme = as.factor("Collapsing Eastern Bering Sea"))-> year_ebs
 
 #And some playing around with marginal effects/ROPE
 
@@ -224,7 +224,7 @@ ce1s_1_nbs <- conditional_effects(nbs_annual_final, effect = "year", re_formula 
                               probs = c(0.025, 0.975)) 
 ce1s_1_nbs$year %>%
   dplyr::select(year, estimate__, lower__, upper__) %>%
-  mutate(lme = as.factor("Northern Bering Sea")) -> year_nbs
+  mutate(lme = as.factor("Non-collapsing Northern Bering Sea")) -> year_nbs
 
 #Combine EBS and NBS plots for Fig 3 in ms 
 year_ebs %>%
@@ -236,15 +236,15 @@ ggplot(dat2, aes(year, estimate__,)) +
   ylab("Energetic Condition (mg FA/g WWT)") + xlab("") +
   scale_fill_manual(values=my_colors) +
   facet_wrap(~lme) +
-  geom_vline(data = subset(dat2, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
-  geom_text(data = subset(dat2, lme == "Eastern Bering Sea"), aes(x = 1, y=185, label = "Mid-collapse"),
+  geom_vline(data = subset(dat2, lme == "Collapsing Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
+  geom_text(data = subset(dat2, lme == "Collapsing Eastern Bering Sea"), aes(x = 1, y=185, label = "Mid-collapse"),
             size = 2.5, color = "#D55E00") +
-  geom_text(data = subset(dat2, lme == "Eastern Bering Sea"), aes(x = 3, y=185, label = "Post-collapse"),
+  geom_text(data = subset(dat2, lme == "Collapsing Eastern Bering Sea"), aes(x = 3, y=185, label = "Post-collapse"),
             size = 2.5, color = "#084594") +
-  theme_ipsum(axis_title_just = "cc", axis_title_size = 13, axis_text_size =11) +
+  theme_ipsum(axis_title_just = "cc", axis_title_size = 11, axis_text_size =10) +
   theme(legend.position="none") +
-  theme(panel.grid.major.x = element_blank()) + 
-  theme(axis.title.y = element_text(size = 12)) 
+  theme(panel.grid.major.x = element_blank()) +
+  theme(strip.text = element_text(size = 11))
 
 ggsave("./figures/Fig3.png", dpi=300, width = 7, height = 5, units = "in")
 

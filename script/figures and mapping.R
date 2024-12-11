@@ -41,7 +41,6 @@ library(hrbrthemes)
 library(ggtext)
 library(ggpubr)
 
-
 #install.packages("remotes")
 #remotes::install_github("afsc-gap-products/akgfmaps")
 
@@ -50,7 +49,6 @@ my_colors <- c("#D55E00","#9ECAE1", "#4292C6", "#084594")
 options(scipen = 999)
 
 ### PROCESS ICE DATA ----------------------------------------------------------
-  
 data <- tidync("./Data/ERA5_ice_1975_2024.nc") %>% 
   hyper_tibble() %>% 
   separate(date, into = c("Year", "Month", "Time"), sep = c(4,6)) %>%
@@ -59,17 +57,16 @@ data <- tidync("./Data/ERA5_ice_1975_2024.nc") %>%
          Month = as.numeric(Month))
 
 ## SET COORDINATE REFERENCE SYSTEMS (CRS) --------------------------------------
-
 in.crs <- "+proj=longlat +datum=NAD83" #CRS is in lat/lon
 map.crs <- "EPSG:3338" # final crs for mapping/plotting: Alaska Albers
 
 ## LOAD SHELLFISH ASSESSMENT PROGRAM GEODATABASE -------------------------------
-
 survey_gdb <- "./Data/SAP_layers" 
 survey_strata <- terra::vect(survey_gdb, layer = "EBS.NBS_surveyarea")
+#EBS/NBS Boundary line
+boundary <- st_read(layer = "EBS_NBS_divide", survey_gdb) 
 
 ## LOAD CONDITION AND SURVEY DATA ---------------------------------------------
-
 condition_master <- read.csv("./data/total_FA_master.csv")
 ebs_haul <- read.csv("./data/crabhaul_opilio.csv")
 nbs_haul <- read.csv("./data/crabhaul_opilio_nbs.csv")
@@ -77,12 +74,11 @@ ebs_strata <- read.csv("./data/crabstrata_opilio.csv")
 nbs_strata <- read.csv("./data/crabstrata_opilio_nbs.csv")
 
 ## LOAD ALASKA REGION LAYERS (FROM AKGFMAPS R package) -----------------------------------
-
 ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
 ebs_survey_areas <- ebs_layers$survey.area
 ebs_survey_areas$survey_name <- c("Eastern Bering Sea", "Northern Bering Sea")
 
-# Survey areas plot
+#Survey areas plot
 ggplot() +
   geom_sf(data = ebs_layers$akland) +
   geom_sf(data = ebs_survey_areas, mapping = aes(fill = survey_name)) +
@@ -93,17 +89,18 @@ ggplot() +
   scale_fill_viridis_d(name = "Survey") +
   theme_bw()
 
-# EBS/NBS shelf Survey grid plot
+#EBS/NBS shelf Survey grid plot
 ggplot() +
   geom_sf(data = ebs_layers$akland) +
   geom_sf(data = ebs_layers$survey.grid, fill = NA) +
+  geom_sf(data= boundary, linewidth = 2) +
   scale_x_continuous(limits = ebs_layers$plot.boundary$x,
                      breaks = ebs_layers$lon.breaks) +
   scale_y_continuous(limits = ebs_layers$plot.boundary$y,
                      breaks = ebs_layers$lat.breaks) +
   theme_bw()
 
-### PANEL A MAP PLOT -----------------------------------------------------------
+### PANEL B MAP PLOT -----------------------------------------------------------
 
 #Filter for sea ice extent threshold 
   #We'll use 15% as our threshold for sea ice extent from estimates of sea ice 
@@ -140,7 +137,7 @@ ggplot() +
   geom_sf(data = ebs_layers$survey.grid, fill=NA, color=alpha("grey80"))+
   geom_sf(data = ebs_survey_areas, fill = NA) +
   geom_sf(data = ebs_layers$akland, fill = "grey80", color = "black") +
-#add hull for sea ice extent
+  #add hull for sea ice extent- though we won't use this approach here....
   #geom_sf(data = ice_hull,
           #fill = NA,
           #color = alpha("red", 0.85),
@@ -149,6 +146,7 @@ ggplot() +
   geom_sf(data=ice_extent , aes(), color = "#9ECAE1", alpha = 0.25 ) +
 #add crab sampling
   geom_sf(data=crab_dat, aes(size = n_crab), color = "grey30", alpha = .6) +
+  geom_sf(data= boundary, linewidth = 1, color = "grey40") +
   scale_x_continuous(limits = ebs_layers$plot.boundary$x,
                      breaks = ebs_layers$lon.breaks) +
   scale_y_continuous(limits = ebs_layers$plot.boundary$y,
@@ -157,12 +155,16 @@ ggplot() +
   theme_bw() +
   facet_wrap(~year) +
   labs(x="", y="", size = expression(paste("Snow crab \n samples"))) +
-  theme(legend.position = "bottom") +
+  theme(legend.position="bottom",
+        legend.margin=margin(-5,0,-1,0), #reducing white space b/w plot and legend
+        legend.spacing.x = unit(-2, "mm"),
+        legend.spacing.y = unit(-2, "mm")) +
   guides(size = guide_legend(theme = theme(
-    legend.title = element_text(size = 9.5)))) +
-  theme(plot.margin = margin(0,0,0,0)) -> map
+    legend.title = element_text(size = 9)))) +
+  theme(plot.margin = margin(0,-5,0,-5)) +
+  theme(axis.text=element_text(size=8)) -> map
 
-### PANEL B ------------------------------------------------------------------
+### PANEL A ------------------------------------------------------------------
 #EBS and NBS abundance timeseries 
 
 #calculate EBS abundance timeseries 
@@ -202,7 +204,9 @@ ebs_haul %>%
   summarise(ABUNDANCE_MIL = sum(ABUNDANCE)/1e6,
             SD_CPUE = sqrt(sum(VAR_CPUE)),
             ABUNDANCE_CI = (1.96*(SD_CPUE))/1e6) %>%
-  mutate(lme = rep("Eastern Bering Sea")) -> ebs_abundance
+  bind_rows(missing <- data.frame(YEAR = 2020)) %>%
+  mutate(lme = rep("Collapsing Eastern Bering Sea")) %>%
+  arrange(YEAR) -> ebs_abundance
 
 #----------------------
 #calculate NBS abundance timeseries 
@@ -241,37 +245,40 @@ nbs_haul %>%
   summarise(ABUNDANCE_MIL = sum(ABUNDANCE)/1e6,
             SD_CPUE = sqrt(sum(VAR_CPUE)),
             ABUNDANCE_CI = (1.96*(SD_CPUE))/1e6) %>%
-  mutate(lme = rep("Northern Bering Sea")) -> nbs_abundance
+  mutate(lme = rep("Non-collapsing Northern Bering Sea")) -> nbs_abundance
 
-#Combine EBS and NBS datasets
+#Combine EBS and NBS datasets and plot ------------------------------------------
 ebs_abundance %>%
   bind_rows(nbs_abundance) -> plot_abun
 
 #Plot with lines
 plot_abun %>%
   filter (YEAR >= 1995) %>%
-ggplot() +
-  #geom_point(data = subset(plot_abun, lme == "Eastern Bering Sea"), 
-             #aes(y=ABUNDANCE_MIL, x=YEAR, color = lme), size = 2) +
-  geom_line(data = subset(plot_abun, lme == "Eastern Bering Sea"), 
+  ggplot() +
+  geom_point(data = subset(plot_abun, lme == "Collapsing Eastern Bering Sea"), 
+             aes(y=ABUNDANCE_MIL, x=YEAR, color = lme), size = 2) +
+  geom_line(data = subset(plot_abun, lme == "Collapsing Eastern Bering Sea"), 
             aes(y=ABUNDANCE_MIL, x=YEAR, color = lme), size = 1, alpha = 7) +
-  geom_ribbon(data = subset(plot_abun, lme == "Eastern Bering Sea"),
+  geom_ribbon(data = subset(plot_abun, lme == "Collapsing Eastern Bering Sea"),
                 aes(ymin = ABUNDANCE_MIL - ABUNDANCE_CI, 
                     ymax = ABUNDANCE_MIL + ABUNDANCE_CI, x=YEAR),
               fill = "#9ECAE1", alpha = 0.2) +
-  geom_point(data = subset(plot_abun, lme == "Northern Bering Sea"), 
-             aes(y=ABUNDANCE_MIL, x=YEAR, color = lme), size = 1.5) +
-  geom_errorbar(data = subset(plot_abun, lme == "Northern Bering Sea"),
+  geom_point(data = subset(plot_abun, lme == "Non-collapsing Northern Bering Sea"), 
+             aes(y=ABUNDANCE_MIL, x=YEAR, color = lme), size = 2) +
+  geom_errorbar(data = subset(plot_abun, lme == "Non-collapsing Northern Bering Sea"),
               aes(ymin = ABUNDANCE_MIL - ABUNDANCE_CI, 
                   ymax = ABUNDANCE_MIL + ABUNDANCE_CI, x=YEAR),
-              color = "#74C476", alpha = .7) +
+              color = "#74C476", alpha = .9) +
   scale_color_manual(values = c("#4292C6", "#41AB5D")) +
   theme_bw() +
+  theme(panel.grid.minor = element_blank()) +
   labs(y="Snow Crab \nAbundance (millions)", x="") +
-  theme(legend.position="bottom") +
+  theme(legend.position=c(.2,.13)) +
+  theme(legend.background = element_rect(color="transparent", fill="transparent")) +
   theme(axis.title.y = element_text(size=10)) +
   theme(legend.title=element_blank()) +
-  #coord_trans(y = "pseudo_log") +
+  coord_trans(y = "pseudo_log") +
+  scale_y_continuous(limits=c(350,NA), breaks=c(500,1500, 5000,10000,20000)) +
   theme(legend.text=element_text(size=9.5)) +
   guides(color = guide_legend(override.aes = list(size=2.5, shape=19))) +
   theme(plot.margin = margin(0,0.5,0,0)) -> abun_plot
@@ -286,13 +293,24 @@ plot_abun %>%
   labs(y="Snow Crab Abundance (millions)", x="") +
   theme(legend.title=element_blank())
 
-### PANELS C AND D -----------------------------------------------------------
+### COMBINE PANELS AND SAVE FIGURE --------------------------------------------
+
+#Figure 1 for ms: combined abun, and map plot
+abun_plot + plot_annotation(tag_levels = 'a') 
+ggsave("./figures/Fig1a.png", height=4 , width=7.5, units="in")
+
+map + plot_annotation(tag_levels = list('b')) &
+  theme(plot.tag.position  = c(.05, 1))
+ggsave("./figures/Fig1b.png", height=7 , width=6, units="in")
+#These were manually combined in pwpt as patchwork was distorting map size! 
+
+### FIG 2 -----------------------------------------------------------
 #Barplots of annual mean cpue and temp for EBS and NBS
 
 #cpue data wrangling
 condition_master %>%
   filter(lme %in% c("EBS", "NBS")) %>%
-  mutate(lme = recode(lme, EBS = "Eastern Bering Sea", NBS = "Northern Bering Sea")) %>%
+  mutate(lme = recode(lme, EBS = "Collapsing Eastern Bering Sea", NBS = "Non-collapsing Northern Bering Sea")) %>%
   distinct(year, lme, gis_station, cpue) %>%
   group_by(year, lme) %>%
   summarize(mean_cpue = mean(cpue, na.rm = T)/1000, #converting to thous crab/nmi2
@@ -307,25 +325,28 @@ ggplot(cpue.dat, aes(year, mean_cpue)) +
   geom_col(aes(fill = ordered(year)), size=3) +
   geom_errorbar(aes(year, ymin=mean_cpue - se_cpue, ymax=mean_cpue + se_cpue), 
                 width=0.3, size=0.5, color = "grey40") +
-  labs(y = "Mean Snow Crab<br>Density (crab/nmi<sup> 2</sup>)", x= "") +
+  labs(y = "Mean Snow Crab Density<br>(thousand crab/nmi<sup> 2</sup>)\n", x= "") +
   scale_fill_manual(values=my_colors) +
-  facet_wrap(~lme, scales = "free_y") +
-  geom_vline(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
-  geom_text(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(x = 1, y=155, label = "Mid-collapse"),
+  facet_wrap(~lme, labeller = label_wrap_gen(multi_line = TRUE)) +
+  geom_vline(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
+  geom_text(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(x = 1, y=700, label = "Mid-collapse"),
             size = 2, color = "#D55E00") +
-  geom_text(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(x = 3, y=155, label = "Post-collapse"),
+  geom_text(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(x = 3, y=700, label = "Post-collapse"),
             size = 2, color = "#0072B2") +
-  theme_ipsum(axis_title_size = 12, axis_text_size =10) +
+  theme_ipsum(axis_title_size = 10.5, axis_text_size =10) +
   theme(legend.position="none") +
-  theme(axis.title.y=element_text(colour="grey30", size = 11)) +
-  theme(strip.text = element_text(hjust = .5)) +
+  coord_trans(y = "pseudo_log") +
+  scale_y_continuous(limits=c(0,NA), breaks=c(5, 25,75,200,600)) +
+  theme(axis.title.y=element_text(colour="grey30", size = 10.5)) +
+  theme(strip.text = element_text(hjust = .5, size=11)) +
   theme(axis.title.y = element_textbox_simple(orientation = "left-rotated", halign = 0.5)) +
-  theme(panel.grid.major.x = element_blank())  -> mean_cpue_plot
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank())  -> mean_cpue_plot
 
 #temperature data wrangling
 condition_master %>%
   filter(lme %in% c("EBS", "NBS")) %>%
-  mutate(lme = recode(lme, EBS = "Eastern Bering Sea", NBS = "Northern Bering Sea")) %>%
+  mutate(lme = recode(lme, EBS = "Collapsing Eastern Bering Sea", NBS = "Non-collapsing Northern Bering Sea")) %>%
   distinct(year, lme, gis_station, gear_temperature) %>%
   group_by(year, lme) %>%
   summarize(mean_temp = mean(gear_temperature, na.rm = T),
@@ -341,36 +362,26 @@ ggplot(temp.dat, aes(year, mean_temp)) +
   geom_errorbar(aes(year, ymin = ifelse(mean_temp - se_temp < 0, 0, mean_temp - se_temp), 
                     ymax=mean_temp + se_temp),
                 width=0.3, size=0.5, color = "grey40") +
-  labs(y = expression("Mean Bottom \nTemperature " ( degree~C)), x = "") +
+  labs(y = expression("Mean Bottom \nTemperature" ( degree~C)), x = "") +
   scale_fill_manual(values=my_colors) +
   facet_wrap(~lme) +
-  geom_vline(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
-  geom_text(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(x = 1, y=3.3, label = "Mid-collapse"),
+  geom_vline(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
+  geom_text(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(x = 1, y=3.3, label = "Mid-collapse"),
             size = 2, color = "#D55E00") +
-  geom_text(data = subset(cpue.dat, lme == "Eastern Bering Sea"), aes(x = 3, y=3.3, label = "Post-collapse"),
+  geom_text(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(x = 3, y=3.3, label = "Post-collapse"),
             size = 2, color = "#0072B2") +
-  theme_ipsum(axis_title_just = "cc", axis_title_size = 12, axis_text_size =10) +
+  theme_ipsum(axis_title_just = "cc", axis_title_size = 10.5, axis_text_size =10) +
   theme(legend.position="none") +
-  theme(axis.title.y=element_text(colour="grey30", hjust = 0.5, size = 11)) +
-  theme(strip.text = element_text(hjust = .5)) +
+  theme(axis.title.y=element_text(colour="grey30", hjust = 0.5, size = 10.5)) +
+  theme(strip.text = element_blank()) +
   theme(panel.grid.major.x = element_blank())  -> mean_temp_plot
 
-### COMBINE PANELS AND SAVE FIGURES --------------------------------------------
-
-#Figure 1 for ms: combined abun, and map plot
-
-abun_plot + plot_annotation(tag_levels = 'a') 
-ggsave("./figures/Fig1a.png")
-
-map + plot_annotation(tag_levels = list('b')) &
-  theme(plot.tag.position  = c(.15, 1))
-ggsave("./figures/Fig1b.png")
+### COMBINE PANELS AND SAVE FIGURE --------------------------------------------
 
 #Figure 2 for ms: combined density and temperature plot
-
-mean_cpue_plot / plot_spacer() / mean_temp_plot  + plot_layout(heights = c(6, -4 , 6)) +
+mean_cpue_plot / plot_spacer() / mean_temp_plot  + plot_layout(heights = c(6, -3 , 6)) +
   plot_annotation(tag_levels = list(c('a', 'b'))) 
-ggsave("./figures/Fig2.png", height=6 , width=6, units="in")
+ggsave("./figures/Fig2.png", height=7 , width=7.5, units="in")
 
 
 -----------------------------------------------------------------------------
