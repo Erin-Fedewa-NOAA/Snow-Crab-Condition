@@ -68,7 +68,7 @@ condition_master %>%
   geom_bar(aes(x=as.factor(maturity), y= n), stat='identity') +
   facet_wrap(~year) +
   theme_bw() +
-  labs(x= "Maturity Status", y = "Sample size") #45 mature males in dataset
+  labs(x= "Maturity Status", y = "Sample size") #48 mature males in dataset
 
 #Sample sizes by sex
 condition_master %>%

@@ -3,7 +3,6 @@
   #to use as a covariate for modeling 
 
 # Author: EJF
-# last updated: 2024/3/13 with 2023 groundfish data 
 
 #Note: This script uses a groundfish dataset that is generated via the Snow Crab 
   #ESP indicator development script (see gf_data_pull.R, which queries directly from Racebase)
@@ -15,7 +14,7 @@ library(mgcv)
 # data ----
 
 #Load groundfish data queried directly from Racebase (see gf_data_pull.R script)
-benthic <- read_csv("./data/gf_cpue_timeseries.csv")
+benthic <- read_csv("./data/gf_cpue_timeseries_2024.csv")
 
 #Calculate mean CPUE (in kg/km^2) for each guild across years 
 benthic %>%

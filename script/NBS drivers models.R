@@ -1,5 +1,5 @@
 #Investigate the effects of temperature and snow crab density on 
-  #energetic condition in NBS
+  #energetic condition in NBS (2019, 2021-2023 data)
 
 ##NOTE: WWT:DWT ratios appear to be affected by difference in sampling methods in 
 #2019. B/c total FA per WWT were not subject to the WWT:DWT discrepancy, it will be 
