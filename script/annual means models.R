@@ -51,7 +51,7 @@ pit <- function(y, yrep) {
 }
 
 #colors
-my_colors <- c("#D55E00","#9ECAE1", "#4292C6", "#084594")
+my_colors <- c("#D55E00","#a6bddb", "#74a9cf", "#0570b0", "#034e7b")
 my_colors2 <- RColorBrewer::brewer.pal(7, "GnBu")[c(5,6)]
 
 
@@ -110,7 +110,7 @@ check_hmc_diagnostics(ebs_annual_final$fit)
 neff_lowest(ebs_annual_final$fit)
 rhat_highest(ebs_annual_final$fit)
 summary(ebs_annual_final) #dramatically lower condition in 2019
-bayes_R2(ebs_annual_final) #r2 = .38 - including year in the base model greatly improves fit
+bayes_R2(ebs_annual_final) #r2 = .35 - including year in the base model greatly improves fit
 loo(ebs_annual_final, moment_match = T)
 
 #Diagnostic Plots
@@ -238,15 +238,15 @@ ggplot(dat2, aes(year, estimate__,)) +
   facet_wrap(~lme) +
   geom_vline(data = subset(dat2, lme == "Collapsing Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
   geom_text(data = subset(dat2, lme == "Collapsing Eastern Bering Sea"), aes(x = 1, y=185, label = "Mid-collapse"),
-            size = 2.5, color = "#D55E00") +
+            size = 2.4, color = "#D55E00") +
   geom_text(data = subset(dat2, lme == "Collapsing Eastern Bering Sea"), aes(x = 3, y=185, label = "Post-collapse"),
-            size = 2.5, color = "#084594") +
+            size = 2.4, color = "#084594") +
   theme_ipsum(axis_title_just = "cc", axis_title_size = 11, axis_text_size =10) +
   theme(legend.position="none") +
   theme(panel.grid.major.x = element_blank()) +
   theme(strip.text = element_text(size = 11))
 
-ggsave("./figures/Fig3.png", dpi=300, width = 7, height = 5, units = "in")
+ggsave("./figures/Fig3.png", dpi=300, width = 7.5, height = 5, units = "in")
 
 #Average marginal effect of year (difference across yrs while holding cw and julian day constant)
 years_ame_nbs <- nbs_annual_final %>% 

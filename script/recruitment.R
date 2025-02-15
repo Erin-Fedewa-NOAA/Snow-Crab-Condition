@@ -17,11 +17,11 @@ library(gganimate)
 condition_master <- read.csv("./data/total_FA_master.csv")
 
 #EBS & NBS haul & strata data 
-ebs_haul <- read.csv("./data/haul_opilio.csv")
-ebs_strata <- read.csv("./data/strata_opilio.csv")
+ebs_haul <- read.csv("./data/crabhaul_opilio.csv")
+ebs_strata <- read.csv("./data/crabstrata_opilio.csv")
 
-nbs_haul <- read.csv("./data/haul_opilio_nbs.csv")
-nbs_strata <- read.csv("./data/strata_opilio_nbs.csv")
+nbs_haul <- read.csv("./data/crabhaul_opilio_nbs.csv")
+nbs_strata <- read.csv("./data/crabstrata_opilio_nbs.csv")
 
 #Functions
 lower_ci <- function(mean, se, n, conf_level = 0.95){
@@ -40,8 +40,8 @@ condition_master %>%
          !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66","2019-207", "2019-212"),
          maturity != 1) %>%
   group_by(lme, sex, year) %>%
-  summarise(avg_Total_FA = mean(Total_FA, na.rm=T),
-            ssd = sd(Total_FA, na.rm = TRUE),
+  summarise(avg_Total_FA = mean(Total_FA_Conc_DWT, na.rm=T),
+            ssd = sd(Total_FA_Conc_DWT, na.rm = TRUE),
             count = n()) %>%
   mutate(se = ssd / sqrt(count),
          lower_ci = lower_ci(avg_Total_FA, se, count),
@@ -100,12 +100,12 @@ condition %>%
   arrange(year,lme) %>%
   mutate(lag_condition = lag(avg_Total_FA)) -> cond_abun
 
-#Plot EBS data only
+#Plot EBS data only- by sex
 cond_abun %>%
   filter(lme == "EBS") %>%
   ggplot(aes(lag_condition, ABUNDANCE_MIL)) +
   geom_point(aes(color=sex)) +
-  #geom_text(aes(label = year)) +
+  geom_text(aes(label = year)) +
   theme_bw() +
   ylim(0,2500)
 

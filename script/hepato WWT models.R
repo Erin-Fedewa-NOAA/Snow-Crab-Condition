@@ -32,7 +32,7 @@ source("./script/stan_utils.R")
 condition_master <- read.csv("./data/total_FA_master.csv")
 
 #plotting
-my_colors <- RColorBrewer::brewer.pal(7, "GnBu")[c(3,5,6, 7)]
+my_colors <- RColorBrewer::brewer.pal(7, "GnBu")[c(3,5,6,7)]
 cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00")
 
 ####################################
@@ -87,7 +87,7 @@ saveRDS(condition_1, file = "./output/condition_1.rds")
 condition_1 <- readRDS("./output/condition_1.rds")
 
 summary(condition_1)
-bayes_R2(condition_1) #.65
+bayes_R2(condition_1) #.64
 posterior_summary(condition_1)
 pairs(condition_1)
 loo_c1 <- loo(condition_1)

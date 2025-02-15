@@ -40,12 +40,13 @@ library(patchwork)
 library(hrbrthemes)
 library(ggtext)
 library(ggpubr)
+library(ggh4x)
 
 #install.packages("remotes")
 #remotes::install_github("afsc-gap-products/akgfmaps")
 
 ### LOAD PLOTTING COLORS -------------------------------------------------------
-my_colors <- c("#D55E00","#9ECAE1", "#4292C6", "#084594")
+my_colors <- c("#D55E00","#a6bddb", "#74a9cf", "#0570b0", "#034e7b")
 options(scipen = 999)
 
 ### PROCESS ICE DATA ----------------------------------------------------------
@@ -106,7 +107,7 @@ ggplot() +
   #We'll use 15% as our threshold for sea ice extent from estimates of sea ice 
   #concentration (e.g. concentration >= 0.15 is ice-covered)- per NSIDC
 data %>%
-  filter(Year > 2018, Year < 2024, Month == 03, Year != 2020) %>%
+  filter(Year > 2018, Month == 03, Year != 2020) %>%
   filter(siconc >= 0.15) %>%
   #there are some ice-covered areas in the AI that really drive the southern 
     #bound of the hull so we'll eliminate these few points manually 
@@ -153,7 +154,7 @@ ggplot() +
                      breaks = ebs_layers$lat.breaks) +
   scale_size_continuous(range = c(1,4)) +
   theme_bw() +
-  facet_wrap(~year) +
+  #facet_wrap(~year) +
   labs(x="", y="", size = expression(paste("Snow crab \n samples"))) +
   theme(legend.position="bottom",
         legend.margin=margin(-5,0,-1,0), #reducing white space b/w plot and legend
@@ -162,7 +163,17 @@ ggplot() +
   guides(size = guide_legend(theme = theme(
     legend.title = element_text(size = 9)))) +
   theme(plot.margin = margin(0,-5,0,-5)) +
-  theme(axis.text=element_text(size=8)) -> map
+  theme(axis.text=element_text(size=8)) +
+  theme(axis.text.x=element_blank()) -> map
+
+#workaround to center the bottom panel
+design <- c(
+  "
+AABBCC
+#DDEE#
+"
+)
+map + ggh4x::facet_manual(~year, design=design) -> final_map
 
 ### PANEL A ------------------------------------------------------------------
 #EBS and NBS abundance timeseries 
@@ -299,9 +310,9 @@ plot_abun %>%
 abun_plot + plot_annotation(tag_levels = 'a') 
 ggsave("./figures/Fig1a.png", height=4 , width=7.5, units="in")
 
-map + plot_annotation(tag_levels = list('b')) &
+final_map + plot_annotation(tag_levels = list('b')) &
   theme(plot.tag.position  = c(.05, 1))
-ggsave("./figures/Fig1b.png", height=7 , width=6, units="in")
+ggsave("./figures/Fig1b.png", height=6 , width=7, units="in")
 #These were manually combined in pwpt as patchwork was distorting map size! 
 
 ### FIG 2 -----------------------------------------------------------
@@ -330,9 +341,9 @@ ggplot(cpue.dat, aes(year, mean_cpue)) +
   facet_wrap(~lme, labeller = label_wrap_gen(multi_line = TRUE)) +
   geom_vline(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
   geom_text(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(x = 1, y=700, label = "Mid-collapse"),
-            size = 2, color = "#D55E00") +
+            size = 2.2, color = "#D55E00") +
   geom_text(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(x = 3, y=700, label = "Post-collapse"),
-            size = 2, color = "#0072B2") +
+            size = 2.2, color = "#0072B2") +
   theme_ipsum(axis_title_size = 10.5, axis_text_size =10) +
   theme(legend.position="none") +
   coord_trans(y = "pseudo_log") +
@@ -367,9 +378,9 @@ ggplot(temp.dat, aes(year, mean_temp)) +
   facet_wrap(~lme) +
   geom_vline(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
   geom_text(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(x = 1, y=3.3, label = "Mid-collapse"),
-            size = 2, color = "#D55E00") +
+            size = 2.2, color = "#D55E00") +
   geom_text(data = subset(cpue.dat, lme == "Collapsing Eastern Bering Sea"), aes(x = 3, y=3.3, label = "Post-collapse"),
-            size = 2, color = "#0072B2") +
+            size = 2.2, color = "#0072B2") +
   theme_ipsum(axis_title_just = "cc", axis_title_size = 10.5, axis_text_size =10) +
   theme(legend.position="none") +
   theme(axis.title.y=element_text(colour="grey30", hjust = 0.5, size = 10.5)) +

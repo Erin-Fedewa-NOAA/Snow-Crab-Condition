@@ -48,6 +48,7 @@ condition_master <- read.csv("./data/total_FA_master.csv")
 #colors for plotting
 my_colors <- c("#084594", "#9ECAE1", "#FCAE91", "#D55E00", "#4292C6")
 my_colors2 <- c("#2A788EFF", "#E7B800", "#440154FF", "#22A884FF")
+my_colors3 <- c("#D55E00","#a6bddb", "#74a9cf", "#0570b0", "#034e7b")
 
 #functions
 pit <- function(y, yrep) {
@@ -302,7 +303,7 @@ plot(b)
 loo(ebs_base_mod, mod2, moment_match = TRUE) 
 #Interesting...at medium to high levels of benthic prey, we see declines in 
   #energetic condition. Maybe more a proxy for competition than prey? 
-#With (-6.2/3.5) < 5, benthic inverts really doesn't add much to predictive capacity. 
+#With (-3.7/2.5) < 5, benthic inverts really doesn't add much to predictive capacity. 
   #We'll drop for parsimony until we can better resolve a benthic prey index
   #Can also evaluate elpd_diff > 6 * se_diff
 #-------------------------------------------------------------------------------
@@ -337,7 +338,7 @@ pp_check(mod3)
 pp_check(mod3, type = "stat_2d")
 
 summary(mod3) 
-bayes_R2(mod3) #R2 = 0.19
+bayes_R2(mod3) #R2 = 0.20
 loo(mod3) -> c
 plot(c)
 
@@ -378,13 +379,14 @@ mcmc_neff(neff_ratio(mod4)) #Effective sample size: All ratios > 0.1
 pp_check(mod4)
 
 summary(mod4) 
-bayes_R2(mod4) #R2 = 0.23
+bayes_R2(mod4) #R2 = 0.21
 loo(mod4) -> d
 plot(d)
 
 # model comparison
 loo(ebs_base_mod, mod3, mod4, moment_match = TRUE)
-#Temperature model has highest predictive capacity 
+#Temperature model has highest predictive capacity, though models are all very 
+  #similar
 
 #----------------------------------------------------------------------------------
 #MODEL 5 TEMP + DENSITY MAIN EFFECTS: default priors, truncated Gaussian, 
@@ -418,7 +420,7 @@ mcmc_neff(neff_ratio(mod5)) #Effective sample size: All ratios > 0.1
 pp_check(mod5)
 
 summary(mod5) 
-bayes_R2(mod5) #R2 = 0.23
+bayes_R2(mod5) #R2 = 0.22
 loo(mod5) -> d
 plot(d)
 
@@ -464,7 +466,7 @@ mcmc_neff(neff_ratio(mod6)) #Effective sample size: All ratios > 0.1
 pp_check(mod6)
 
 summary(mod6) 
-bayes_R2(mod6) #R2 = 0.23
+bayes_R2(mod6) #R2 = 0.24
 loo(mod6) -> d
 plot(d)
 
@@ -477,15 +479,16 @@ loo(ebs_base_mod, mod3, mod4, mod5, mod6, moment_match = TRUE)
 
 #LOO-CV
 ebs_base_mod <- add_criterion(ebs_base_mod, "loo")
+mod3 <- add_criterion(mod3, "loo")
 mod4 <- add_criterion(mod4, "loo")
 mod5 <- add_criterion(mod5, "loo")
 mod6 <- add_criterion(mod6, "loo")
-loo_compare(ebs_base_mod, mod4, mod5, mod6, criterion = "loo") %>% print(simplify = F)
-  model.comp <- loo(ebs_base_mod, mod4, mod5, mod6, moment_match = TRUE)
+loo_compare(ebs_base_mod, mod3, mod4, mod5, mod6, criterion = "loo") %>% print(simplify = F)
+  model.comp <- loo(ebs_base_mod, mod3, mod4, mod5, mod6, moment_match = TRUE)
 
 #and loo weights
 model_weights(ebs_base_mod, mod4, mod5, mod6, weights = "loo") %>% round(digits = 2)
-#more parsimonious temperature model is given highest weight
+#Interactive model is given highest weight
 
 #Table of Rsq Values 
 rbind(bayes_R2(ebs_base_mod), 
@@ -542,7 +545,7 @@ check_hmc_diagnostics(ebs_pop_final$fit)
 neff_lowest(ebs_pop_final$fit)
 rhat_highest(ebs_pop_final$fit)
 summary(ebs_pop_final)
-bayes_R2(ebs_pop_final) #r2 = .31
+bayes_R2(ebs_pop_final) #r2 = .24
 r2_bayes(ebs_pop_final) #conditional r2 takes both fixed and random effects into account 
 loo1 <- loo(ebs_pop_final, save_psis = TRUE)
 plot(loo1)
@@ -728,8 +731,8 @@ nbsplot <- tempplot_nbs + cpueplot_nbs +
   plot_annotation('Non-collapsing Northern Bering Sea',
                   theme=theme(plot.title=element_text(hjust=0.5, size=12)))
 
-wrap_elements(ebs_plot + plot_annotation(tag_levels='a')) / wrap_elements(nbsplot + plot_annotation(tag_levels = list(c('b','c'))))
-ggsave("./figures/Fig4.png", height=6, width=6, unit="in")
+wrap_elements(ebsplot + plot_annotation(tag_levels='a')) / wrap_elements(nbsplot + plot_annotation(tag_levels = list(c('b','c'))))
+ggsave("./figures/Fig4.png", height=7, width=6, unit="in")
 
 #Supplementary Figure with size and DOY conditional effects 
 
@@ -747,7 +750,7 @@ wrap_elements(ebs_comb + plot_layout() & theme(axis.title.x = element_text(size 
                 axis.title.y = element_text(size = 10))) / 
 wrap_elements(nbs_comb + plot_layout() & theme(axis.title.x = element_text(size = 10),
                                  axis.title.y = element_text(size = 10))) 
-ggsave("./figures/Sup1.png", height=5, width=6.5, unit="in")
+ggsave("./figures/Sup1.png", height=5, width=6, unit="in")
 
 #--------------------------------------------------------------------------------
 #MISCELLANOUS SNIPPETS OF CODE FOR REFERENCE BELOW 
