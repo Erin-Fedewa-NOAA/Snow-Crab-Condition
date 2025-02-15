@@ -5,7 +5,9 @@ Project PIs: Erin Fedewa (NOAA AFSC) and Louise Copeman (NOAA AFSC)
 
 Manuscript Authors: E. Fedewa, L. Copeman, M. Litzow
 
-Bayesian regression models were fit with Stan version 2.32.3, R version 4.3.0, and the rstan and brms R packages (Bürkner, 2017; R Core Team, 2023; Stan Development Team, 2024). This project was funded by the North Pacific Research Board (Project #1911: "Variation in body condition of Bering Sea snow crab"). 
+Bayesian regression models were fit with Stan version 2.32.3, R version 4.3.0, and the rstan and brms R packages (Bürkner, 2017; R Core Team, 2023; Stan Development Team, 2024). 
+
+This project was funded by the North Pacific Research Board (Project #1911: "Variation in body condition of Bering Sea snow crab"). 
 
 # Project Objectives:
 1) Test the hypothesis that energetic condition covaries with population change during and after the collapse in the eastern and northern Bering Sea
