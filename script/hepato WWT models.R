@@ -141,7 +141,7 @@ ebs_haul %>%
   filter(year %in% c(2011, 2015, 2017:2024),
          haul_type==3, 
          weight != "NA", 
-         weight != 0, #weird- two 0 observations...
+        weight != 0, #weird- one 0 observations...
          width != "NA") %>%
   mutate(log_weight = as.numeric(log(weight)),
          log_cw = as.numeric(log(width)), 
