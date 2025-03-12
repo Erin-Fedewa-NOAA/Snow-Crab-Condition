@@ -41,6 +41,8 @@ library(hrbrthemes)
 library(ggtext)
 library(ggpubr)
 library(ggh4x)
+library(gridExtra)
+library(lemon)
 
 #install.packages("remotes")
 #remotes::install_github("afsc-gap-products/akgfmaps")
@@ -122,8 +124,9 @@ data %>%
 
 #Transform crab data into spatial data frame
 condition_master %>% 
-  group_by(year, mid_latitude, mid_longitude) %>%
-  summarise(n_crab=n()) %>%
+  filter(lme %in% c("EBS", "NBS")) %>%
+  group_by(year, lme, mid_latitude, mid_longitude) %>%
+  summarise(n_crab=n()) %>% 
   # Convert lat/long to an sf object
   st_as_sf(coords = c("mid_longitude", "mid_latitude"), crs = st_crs(4326)) %>%
   #st_as_sf needs crs of the original coordinates- need to transform to Alaska Albers
@@ -146,7 +149,7 @@ ggplot() +
 #add ice extent
   geom_sf(data=ice_extent , aes(), color = "#9ECAE1", alpha = 0.25 ) +
 #add crab sampling
-  geom_sf(data=crab_dat, aes(size = n_crab), color = "grey30", alpha = .6) +
+  geom_sf(data=crab_dat, aes(size = n_crab, color=lme), alpha = .6) +
   geom_sf(data= boundary, linewidth = 1, color = "grey40") +
   scale_x_continuous(limits = ebs_layers$plot.boundary$x,
                      breaks = ebs_layers$lon.breaks) +
@@ -154,18 +157,38 @@ ggplot() +
                      breaks = ebs_layers$lat.breaks) +
   scale_size_continuous(range = c(1,4)) +
   theme_bw() +
-  #facet_wrap(~year) +
-  labs(x="", y="", size = expression(paste("Snow crab \n samples"))) +
+  facet_wrap(~year) +
+  scale_color_manual(values = c("#034e7b", "#238b45")) +
   theme(legend.position="bottom",
         legend.margin=margin(-5,0,-1,0), #reducing white space b/w plot and legend
         legend.spacing.x = unit(-2, "mm"),
         legend.spacing.y = unit(-2, "mm")) +
-  guides(size = guide_legend(theme = theme(
-    legend.title = element_text(size = 9)))) +
   theme(plot.margin = margin(0,-5,0,-5)) +
   theme(axis.text=element_text(size=8)) +
-  theme(axis.text.x=element_blank()) -> map
+  theme(axis.text.x=element_blank()) -> base_map
 
+#Goofy workaround for duplicating legends by lme:
+#Add EBS-specific legend and extract 
+base_map +
+  labs(x="", y="", size = expression(paste("Eastern Bering Sea samples"))) +
+  guides(color = "none") +
+  guides(size = guide_legend(override.aes = list(color="#034e7b"))) +
+  theme(legend.title=element_text(size=9)) -> ebs_map
+#extract EBS legend
+ebs_legend <- g_legend(ebs_map)
+
+#Add NBS-specific legend and extract 
+base_map +
+  labs(x="", y="", size = expression(paste("Northern Bering Sea samples"))) +
+  guides(color = "none") +
+  guides(size = guide_legend(override.aes = list(color="#238b45"))) +
+  theme(legend.title=element_text(size=9)) -> nbs_map
+#extract NBS legend
+nbs_legend <- g_legend(nbs_map)
+
+#Base map with workaround to center bottom panel 
+base_map +
+  guides(color = "none", size = "none") -> base
 #workaround to center the bottom panel
 design <- c(
   "
@@ -173,7 +196,11 @@ AABBCC
 #DDEE#
 "
 )
-map + ggh4x::facet_manual(~year, design=design) -> final_map
+base + ggh4x::facet_manual(~year, design=design) -> final_base
+
+#Now combine map and two legends for final map
+final_base / nbs_legend / ebs_legend +
+  plot_layout(heights= c(5,.1,.1)) -> final_map
 
 ### PANEL A ------------------------------------------------------------------
 #EBS and NBS abundance timeseries 
@@ -311,7 +338,7 @@ abun_plot + plot_annotation(tag_levels = 'a')
 ggsave("./figures/Fig1a.png", height=4 , width=7.5, units="in")
 
 final_map + plot_annotation(tag_levels = list('b')) &
-  theme(plot.tag.position  = c(.05, 1))
+  theme(plot.tag.position  = c(.02, 1))
 ggsave("./figures/Fig1b.png", height=6 , width=7, units="in")
 #These were manually combined in pwpt as patchwork was distorting map size! 
 
