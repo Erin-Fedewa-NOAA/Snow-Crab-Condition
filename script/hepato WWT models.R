@@ -28,6 +28,7 @@ library(knitr)
 library(loo)
 library(sjPlot)
 library(mgcv)
+library(viridis)
 source("./script/stan_utils.R")
 
 #load data 
@@ -145,7 +146,8 @@ ebs_haul %>%
          width != "NA") %>%
   mutate(log_weight = as.numeric(log(weight)),
          log_cw = as.numeric(log(width)), 
-         year = as.factor(year)) -> dat
+         year = as.factor(year),
+         weight = as.numeric(weight)) -> dat
 
 #sample sizes of all weight data
 dat %>%
@@ -154,7 +156,7 @@ dat %>%
 
 #plot full dataset
 dat %>%
-  ggplot(aes(log_weight, log_cw, color=factor(year))) +
+  ggplot(aes(log_cw, log_weight,color=factor(year))) +
   geom_point() +
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) 
@@ -163,7 +165,7 @@ dat %>%
 #plot low sample size years only
 dat %>%
   filter(year %in% c(2018, 2021, 2023)) %>%
-  ggplot(aes(log_weight, log_cw, color=factor(year))) +
+  ggplot(aes(log_cw, log_weight, color=year)) +
   geom_point() +
   theme_bw() + 
   geom_smooth(method = "lm", se = FALSE) 
@@ -173,30 +175,47 @@ dat %>%
 dat %>% filter(year %in% c(2011, 2015, 2017:2019)) -> precollapse_dat
 dat %>% filter(year %in% c(2011, 2015, 2017:2019, 2022, 2024)) -> full_dat
 
-#plot by bottom temp
+#plot by bottom temp-similar to Fig 49 in Science paper appendix
 full_dat %>%
-  ggplot(aes(log_weight, log_cw, color=gear_temperature)) +
+  ggplot(aes(width, weight, color=gear_temperature)) +
   geom_point() +
   theme_bw() + 
-  scale_color_viridis() +
-  geom_smooth(method = "lm", se = FALSE, color="grey") +
+  scale_color_distiller(palette = "Spectral") +
+  geom_smooth(method = "gam", se = FALSE, color="black", linewidth=.5) +
   facet_wrap(~year)
 #seems the temperature covariate primarily accounts for weight at size 
-#differences due to size/stage specific thermal preferences, but we'll keep in
+#differences due to size/stage specific thermal preferences (i.e. positive effect of 
+#gear temperature on weight simply b/c larger crab at warmer temps), but we'll keep in
 
-#2017 vrs 2018, holding bottom temp at 1C
+#2017 vrs 2018 only
 dat %>%
-  filter(year %in% c(2017, 2018),
-         between(gear_temperature, 1, 2)) %>%
-  ggplot(aes(log_weight, log_cw, color=factor(year))) +
+  filter(year %in% c(2017,2018)) %>%
+  ggplot(aes(width, weight, color=gear_temperature, group=year)) +
   geom_point() +
   theme_bw() + 
-  geom_smooth(method = "lm", se = FALSE) 
-#not sure how Cody did this? There are no weight observations in 2018 at 1C
+  scale_color_distiller(palette = "Spectral") +
+  geom_smooth(method = "gam", se = FALSE, color="black", linewidth=.8) 
 
 #fit gam using Szuwalski et al approach 
-mod1 <- gam(weight ~ s(width) + year + s(gear_temperature), data = precollapse_dat)
-summary(mod1) #negative coefficient for 2018, but fairly small effect 
+mod1 <- gam(weight ~ s(width) + year + s(gear_temperature, k=3), data = precollapse_dat)
+summary(mod1) #negative coefficient for 2018, but very small effect - not sure 
+#how data was filtered down to n=27 in 2018?
+plot.gam(mod1, se=TRUE, shade=TRUE, all.terms=TRUE)
+#Partial effect plot for temperature indicates no effect on weight 
+
+plot_predictions(mod1, condition=c("width", "year"))
+plot_predictions(mod1, condition=list("width", "year"=2017:2018, "gear_temperature" = 1:1.99))
+
+#Now make predictions while holding temperature at 1C
+precollapse_dat %>%
+  mutate(temp_bin = floor(gear_temperature)) %>%
+  filter(temp_bin == 1) -> new.dat
+
+p <- predict.gam(mod1, newdata=new.dat, type="response")
+p <- as.data.frame(p)
+pred <- cbind(new.dat, p)
+
+#Not sure how this was done- there's no weight data at 1C in 2018 for predictions?
 
 #what about adding julian day to attempt to correct for variation in molt timing?
 mod1a <- gam(weight ~ s(width) + year + s(julian), data = precollapse_dat)
@@ -208,13 +227,13 @@ plot_predictions(mod1a, condition = 'julian',
   labs(y = "Expected response",
        title = "Average smooth effect of Julian day") +
   theme_bw()
-#julian day is significant, but effect can't be distinguished from zero
+#julian day effect can't be distinguished from zero
+
 
 #now run gam for full dataset, including post collapse years 
 mod2 <- gam(weight ~ s(width) + year + s(gear_temperature), data = full_dat)
 summary(mod2) 
-#hard to compare direction of effects for each year with annual FA condition metrics
-  #due to weight data not being collected annually...
+plot.gam(mod2, se=TRUE, shade=TRUE, all.terms=TRUE)
 
 #and a model without year covariate, to fit a single regression across all years, 
   #and extract annual residuals 
@@ -232,8 +251,10 @@ full_dat %>%
   geom_bar(stat = "identity") + 
   theme_bw() + 
   labs(y = "Mean L:W residual") +
-  ggtitle("Survey data: \nAnnual L:W residuals") -> a
+  ggtitle("Survey data: \nAnnual L:W residuals") 
 #again, fairly small effect size in 2018
+
+############################################################
 
 #Now, let's calculate a relative condition factor to compare to fatty acid data for all
   #hepato sampled crab: Kn = observed weight/predicted weight (via regression fit from 
@@ -255,6 +276,14 @@ ebs_haul %>%
          log_cw = as.numeric(log(width)), 
          year = as.factor(year)) -> dat2
 
+#plot full dataset
+dat2 %>%
+  #filter(year %in% c(2022, 2024)) %>%
+  ggplot(aes(width, weight,color=factor(year))) +
+  geom_point() +
+  theme_bw() + 
+  geom_smooth(method = "gam", se = FALSE) 
+
 #Predicted weight:fit L:W regression from 2011-2024, eliminating poorly sampled years
 mod4 <- lm(log_weight ~ log_cw, data = dat2)
 summary(mod4)
@@ -263,7 +292,20 @@ coef(mod4)
 # W = exp(-8.213247) * L^(3.078925)  on original scale 
 #Note that we're overlooking a bias correction here should we need to back-transform!
 
-#now wrangle condition data for observed weights
+#extract annual L:W residuals and plot
+dat2$resid <- residuals(mod4)
+
+dat2 %>% 
+  group_by(year) %>%
+  summarise(Avg_resid = mean(resid)) %>%
+  ggplot(aes(year, Avg_resid)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() + 
+  labs(y = "Mean L:W residual") +
+  ggtitle("Survey data: \nAnnual L:W residuals") 
+#Very small residuals....
+
+#now wrangle condition data for observed weights- no weights taken in 2024!
 condition_master %>%
   filter(lme != "NA", #one crab collected outside the sampling design
          !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66","2019-207", "2019-212"),#likely tanners
@@ -274,7 +316,7 @@ condition_master %>%
          log_cw = as.numeric(log(cw)), 
          year = as.factor(year))-> cond_dat
 
-#predictions using regression fit with survey weight at size data
+#predict weight of condition crab using regression fit with survey weight at size data
 pred_dat <-  cond_dat %>%
   dplyr::select(log_cw, log_weight, year)
 
@@ -285,6 +327,15 @@ bind_cols(cond_dat, predictions) %>%
   mutate(k_n = log_weight/fit,
          resid = log_weight - fit) -> dat_check
 
+dat_check %>% 
+  group_by(year) %>%
+  summarise(Avg_resid = mean(resid)) %>%
+  ggplot(aes(year, Avg_resid)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() + 
+  labs(y = "Mean L:W residual") +
+  ggtitle("Condition crab: \nAnnual L:W residuals") 
+
 
 #plot relative condition, k_n, vrs total FA
 dat_check %>%
@@ -293,7 +344,7 @@ ggplot(aes(k_n, Total_FA_Conc_WWT, color=factor(year))) +
   theme_bw()  +
   #geom_smooth(method = "lm", se = FALSE) +
   labs(x= "Relative Condition (observed/predicted weight at size)", y = "Total FA per WWT (mg FA/g WWT)") +
-  ggtitle("Study samples: \nFA vrs Morphometric Condition") -> b
+  ggtitle("Study samples: \nFA vrs Morphometric Condition") 
 
 #model relationship between k_n and total FA
 mod5 <- lm(k_n ~ Total_FA_Conc_WWT + year, data = dat_check)
@@ -307,7 +358,7 @@ dat_check %>%
   theme_bw()  +
   #geom_smooth(method = "lm", se = FALSE) +
   labs(x= "L:W Residual", y = "Total FA per WWT (mg FA/g WWT)") +
-  ggtitle("Study samples: \nA Condition vrs L:W residuals") -> c
+  ggtitle("Study samples: \nA Condition vrs L:W residuals") 
 
 #Fultons K Condition factor vrs % WWT
 cond_dat %>%
@@ -319,10 +370,12 @@ cond_dat %>%
   #geom_smooth(method = "lm", se = FALSE) +
   labs(x= "Fultons K Condition Factor", y = "Total FA per DWT (mg FA/g WWT)") 
 #very little variation in weight at size as compared to total FA, but Fultons K
-#doesn't account for 
+#doesn't account for variation in crab size well
 
-#combine plots
-a + b + c
+#Follow up: males vrs females modeled separately (2018 sample size discrepancy
+  #due to filtering out females maybe?)
+
+
 
 
 
