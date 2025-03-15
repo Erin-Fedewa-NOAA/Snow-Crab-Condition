@@ -1,5 +1,5 @@
 # Snow-Crab-Condition
-Data and analyses for "Energetic limitations and mass mortality of Bering Sea snow crab: Interacting effects of warming and density on collapse and recovery", in prep. This dataset includes immature snow crab sampled for hepatopancreas on NOAA eastern Bering Sea (2019, 2021-2024) and northern Bering Sea (2019, 2021-2023) bottom trawl surveys. We use a direct measure of energetic condition (total fatty acids in the hepatopancreas) applied across the collapsing eastern Bering Sea and non-collapsing northern Bering Sea portions of the snow crab population to evaluate energetic reserves as a mechanism explaining the collapse and potential recovery of Bering Sea snow crab. 
+Data and analyses for "Energetic limitations and mass mortality of Bering Sea snow crab: Interacting effects of warming and density on collapse and recovery", in review. This dataset includes immature snow crab sampled for hepatopancreas on NOAA eastern Bering Sea (2019, 2021-2024) and northern Bering Sea (2019, 2021-2023) bottom trawl surveys. We use a direct measure of energetic condition (total fatty acids in the hepatopancreas) applied across the collapsing eastern Bering Sea and non-collapsing northern Bering Sea portions of the snow crab population to evaluate linkages between energetic reserves, collapse risk, and recovery potential. 
 
 Project PIs: Erin Fedewa (NOAA AFSC) and Louise Copeman (NOAA AFSC) 
 
@@ -7,6 +7,7 @@ Manuscript Authors: E. Fedewa, L. Copeman, M. Litzow
 
 Bayesian regression models were fit with Stan version 2.32.3, R version 4.3.0, and the rstan and brms R packages (Bürkner, 2017; R Core Team, 2023; Stan Development Team, 2024). 
 
+#Funding:
 This project was funded by the North Pacific Research Board (Project #1911: "Variation in body condition of Bering Sea snow crab"). 
 
 # Project Objectives:
@@ -49,7 +50,7 @@ Coverage
 |                | Eastern Bering Sea |
 |               |   Northern Bering Sea |
 
-![Rplot](https://github.com/Erin-Fedewa-NOAA/Snow-Crab-Condition/blob/main/figures/data%20exploration/n_year.png?raw=true)
+![Rplot](https://github.com/Erin-Fedewa-NOAA/Snow-Crab-Condition/blob/main/figures/Fig1b.png)
 
 
 
