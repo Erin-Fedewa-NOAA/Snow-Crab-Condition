@@ -16,18 +16,19 @@ library(tidyverse)
 bio_dat <- read.csv("./data/2019_2024 biometrics data.csv")
 
 #Determine male maturity via distribution-based cutline method/clutch codes
+  #EBS cutline updated 5/25 using new annual estimation process for minima
 bio_dat %>%
   mutate(CW = as.numeric(CW),
       maturity = case_when((Sex == 2 & CH_CC > 0) ~ 1, #mature female (EBS & NBS)
                            (Sex == 2 & CH_CC == 0) ~ 0, #immature female (EBS & NBS)
                            #Define conditions for EBS immature/mature male using cutlines 
                            (Sex == 1 & Cruise %in% c(201901,202101,202201,202301, 202401) & 
-                              log(CH_CC) < -2.20640 + 1.13523 * log(CW)) | #immature male EBS
+                              log(CH_CC) < -2.36 + 1.18 * log(CW)) | #immature male EBS
                              (Sex == 1 & CW < 50 & Cruise %in% c(201901,202101,202201,202301)) |
                              (Sex == 1 & CH_CC == 0) ~ 0, #in 2024, datasheets read "imm" for males because
                            #maturity was confirmed with maturity app. Coded as 0 
                            (Sex == 1 & Cruise %in% c(201901,202101,202201,202301,202401) &
-                              log(CH_CC) >= -2.20640 + 1.13523 * log(CW)) ~ 1, #mature male EBS
+                              log(CH_CC) >= -2.36 + 1.18 * log(CW)) ~ 1, #mature male EBS
                            #NBS male cutlines
                            (Sex == 1 & Cruise %in% c(201902,202102,202202,202302) & 
                               log(CH_CC) < -1.916947 + 1.070620 * log(CW))| (Sex == 1 & CW < 40 &
