@@ -313,8 +313,22 @@ plot(loo1)
 #Diagnostic Plots
 plot(basin_pop_final, ask = FALSE)
 plot(conditional_effects(basin_pop_final), ask = FALSE)
+plot(conditional_smooths(basin_pop_final), ask = FALSE)
 mcmc_plot(basin_pop_final, prob = 0.95)
 mcmc_neff(neff_ratio(basin_pop_final)) #Effective sample size: All ratios > 0.1
+
+#DHARMa residuals
+  #https://cran.r-project.org/web/packages/DHARMa/vignettes/DHARMa.html
+  #https://frodriguezsanchez.net/post/using-dharma-to-check-bayesian-models-fitted-with-brms/#:~:text=Model%20checking%20with%20DHARMa,with%20other%20supported%20model%20types.
+model.check <- createDHARMa(
+  simulatedResponse = t(posterior_predict(basin_pop_final)),
+  observedResponse = basin.dat$Total_FA_Conc_WWT,
+  fittedPredictedResponse = apply(t(posterior_epred(basin_pop_final)), 1, mean),
+  integerResponse = TRUE)
+
+plot(model.check)
+plot(model.check, form = basin.dat$region)
+testDispersion(model.check)
 
 #Interaction plot
 conditions <- make_conditions(basin_pop_final, "lme")
