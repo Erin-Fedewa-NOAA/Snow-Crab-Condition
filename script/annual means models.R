@@ -54,7 +54,6 @@ pit <- function(y, yrep) {
 my_colors <- c("#D55E00","#a6bddb", "#74a9cf", "#0570b0", "#034e7b")
 my_colors2 <- RColorBrewer::brewer.pal(7, "GnBu")[c(5,6)]
 
-
 #-----------------------------------------------------------------------------
 #data wrangling- EBS dataset  
 condition_master %>%
@@ -278,17 +277,19 @@ ggsave("./figures/FigSupp.png", dpi=300, width = 6.5, height = 4.5, units = "in"
 ebs.dat %>%
   group_by(year) %>%
   summarise(mean_cpue = mean(cpue)) %>% 
-  mutate(lme = rep("Eastern Bering Sea")) %>%
+  mutate(lme = rep("Collapsing Eastern Bering Sea")) %>%
   full_join(nbs.dat %>%
               group_by(year) %>%
               summarise(mean_cpue = mean(cpue)) %>% 
-              mutate(lme = rep("Northern Bering Sea"))) %>%
+              mutate(lme = rep("Non-collapsing Northern Bering Sea"))) %>%
   left_join(year_ebs %>% full_join(year_nbs)) %>%
   #need to run "figures and mapping script for abundance data
   left_join(plot_abun %>%
               select(YEAR, ABUNDANCE_MIL, lme) %>%
               rename(year = YEAR) %>%
-              mutate(year = as.factor(year))) -> cond_crab_dat 
+              mutate(year = as.factor(year))) %>%
+  #lag abundance 1 year
+  mutate(lag_abun = lead(ABUNDANCE_MIL)) -> cond_crab_dat 
 
 #quick plot of condition x mean density at stations sampled 
 cond_crab_dat %>%
@@ -305,6 +306,16 @@ cond_crab_dat %>%
   ggplot(aes(ABUNDANCE_MIL, estimate__, group = lme, color=lme)) + 
   geom_point() +
   geom_text(aes(label=year), hjust=.5, vjust=-.7, show_guide = F) +
+  geom_smooth(method = 'lm', alpha = 0.2) + 
+  theme_bw() + 
+  labs(x="Snow crab abundance", y="Mean energetic condition") +
+  theme(legend.title=element_blank())
+
+#quick plot of condition x total ebs/nbs abundance at 1 yr lag
+cond_crab_dat %>%
+  ggplot(aes(lag_abun, estimate__, group = lme, color=lme)) + 
+  geom_point() +
+  #geom_text(aes(label=year), hjust=.5, vjust=-.7, show_guide = F) +
   geom_smooth(method = 'lm', alpha = 0.2) + 
   theme_bw() + 
   labs(x="Snow crab abundance", y="Mean energetic condition") +
