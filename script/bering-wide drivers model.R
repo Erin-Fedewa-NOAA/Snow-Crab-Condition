@@ -443,7 +443,7 @@ ce1s_3 <- conditional_effects(basin_pop_final, effects = "fourth.root.cpue:tempe
                               conditions=conditions_one_level,
                               probs = c(0.1, 0.9))
 dat_ce <- ce1s_1$fourth.root.cpue
-dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
+dat_ce[["upper_95"]] <- dat_ce[["upper__"]] 
 dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
 dat_ce[["upper_90"]] <- ce1s_2$fourth.root.cpue[["upper__"]]
 dat_ce[["lower_90"]] <- ce1s_2$fourth.root.cpue[["lower__"]]
@@ -460,12 +460,12 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(temperature), 
   scale_fill_manual(values = my_colors) +
   scale_color_manual(values = my_colors) + 
   ggtitle("Collapsing Eastern Bering Sea") +
-  theme(plot.title = element_text(hjust = 0.5, size=12)) +
-  theme(axis.title = element_text(size=10)) +
+  theme(plot.title = element_text(hjust = 0.5, size=12.5)) +
+  theme(axis.title = element_text(size=9.5)) +
   theme(legend.title=element_text(size=9.5)) -> ebs_ixnplot
 
 #####
-#NBS temp x density interaction
+#Figure 4b NBS temp x density interaction
 
 #Define temperature levels for interaction
 temp <- list(temperature = c(0, 1, 2, 3))
@@ -507,11 +507,26 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__, color = ordered(temperature), 
   scale_fill_manual(values = my_colors) +
   scale_color_manual(values = my_colors) + 
   ggtitle("Non-collapsing Northern Bering Sea") +
-  theme(plot.title = element_text(hjust = 0.5, size=12)) +
-  theme(axis.title = element_text(size=10)) +
+  theme(plot.title = element_text(hjust = 0.5, size=12.5)) +
+  theme(axis.title = element_text(size=9.5)) +
   theme(legend.title=element_text(size=9.5)) -> nbs_ixnplot
 
+#---------------------------------------------------------------------------
+#Combine and Save Plots to create Fig 4 and Supplementary Fig 
+
+ebs_ixnplot / nbs_ixnplot + plot_annotation(tag_levels='a')
+ggsave("./figures/Fig4.png", height=7, width=6, unit="in")
+
+#Supplementary Figure with size and DOY conditional effects 
+
+(dayplot_basin + labs(y="Energetic Condition\n(mg FA/g WWT)"))  + sizeplot_basin +
+  plot_annotation(tag_levels = 'a', 
+                  theme = theme(plot.title = element_text(hjust = 0.5))) -> basin_supp
+ggsave("./figures/Sup1.png", height=4, width=7, unit="in")
+
 #####
+#OTHER PLOTS BELOW
+
 #Temp x lme interaction 
 
 ce1s_1 <- conditional_effects(basin_pop_final, effects = "temperature:lme",
@@ -659,23 +674,4 @@ ggplot(dat_ce, aes(x = effect1__, y = estimate__)) +
   ylim(0,215) +
   theme(axis.title = element_text(size=10)) -> nbs_cpueplot
 
-#---------------------------------------------------------------------------
-#Combine and Save Plots to create Fig 4 and Supplementary Fig 
 
-#Fig 4 temperature/density effects
-ebsplot <- plot_spacer() + ebs_ixnplot + plot_spacer() + 
-  plot_layout(widths = c(1,4.5,1))
-
-nbsplot <- nbs_tempplot + nbs_cpueplot + 
-  plot_annotation('Non-collapsing Northern Bering Sea',
-                  theme=theme(plot.title=element_text(hjust=0.5, size=12)))
-
-wrap_elements(ebsplot + plot_annotation(tag_levels='a')) / wrap_elements(nbsplot + plot_annotation(tag_levels = list(c('b','c'))))
-ggsave("./figures/Fig4.png", height=7, width=6, unit="in")
-
-#Supplementary Figure with size and DOY conditional effects 
-
-(dayplot_basin + labs(y="Energetic Condition\n(mg FA/g WWT)"))  + sizeplot_basin +
-  plot_annotation(tag_levels = 'a', 
-                  theme = theme(plot.title = element_text(hjust = 0.5))) -> basin_supp
-ggsave("./figures/Sup1.png", height=4, width=7, unit="in")

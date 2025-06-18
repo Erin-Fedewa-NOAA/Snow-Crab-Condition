@@ -24,6 +24,11 @@ can <- raster::getData("GADM", country = c("CAN"), level = 1, path = "./data")
 
 #Sample size by year map
 condition_master %>% 
+  filter(!vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"), 
+         maturity != 1,
+         sample_region > 0,
+         lme %in% c("EBS", "NBS"),
+         cw > 40) %>%
   group_by(year, mid_latitude, mid_longitude) %>%
   summarise(n_crab=n()) %>%
   ggplot() + 
@@ -49,10 +54,13 @@ ggsave("./figures/data exploration/n_year2.png", dpi=300)
 # Sample sizes by year - total FA WWT
 #Note that in 2023, not all samples were prioritized for FA analysis
 condition_master %>%
-  filter(Total_FA_Conc_WWT > 0) %>%
+  filter(!vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"), 
+         maturity != 1,
+         sample_region > 0,
+         lme %in% c("EBS", "NBS"),
+         cw > 40) %>%
   group_by(year,lme) %>%
   count() %>%
-  filter(lme != "NA") %>% #one crab collected outside the sampling design
   ggplot() +
   geom_bar(aes(x=as.factor(lme), y= n), stat='identity') +
   facet_wrap(~year) +
